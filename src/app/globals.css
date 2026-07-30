@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Design tokens
+
+   A cold, high-contrast alpine system: near-black ground, ice-white type,
+   a narrow band of snow-shadow blues, and exactly one vivid accent used for
+   emphasis only (never for large fills).
+   ───────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Ground */
+  --color-void: #05070a;
+  --color-ink: #0a0d11;
+  --color-charcoal: #14181e;
+  --color-graphite: #1e242c;
+
+  /*
+   * Snow shadow.
+   *
+   * `steel` is the dimmest text colour in the system (metadata, captions, slot
+   * labels) and is measured, not eyeballed: at #6b7a8a it scored 4.05:1 on
+   * `charcoal` and 3.55:1 on `graphite`, below the 4.5:1 AA floor for small
+   * text. #7f8e9b clears 4.5:1 on every dark surface the design actually uses.
+   */
+  --color-slate: #3c4754;
+  --color-steel: #7f8e9b;
+  --color-mist: #9dadbd;
+  --color-pale: #c6d5e2;
+
+  /* Snow */
+  --color-ice: #eef4f9;
+  --color-paper: #fbfcfd;
+
+  /* The single accent — signal orange, borrowed from avalanche kit. */
+  --color-accent: #ff4b12;
+  --color-accent-dim: #c2380c;
+
+  /* Type */
+  --font-display: var(--font-anton), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, serif;
+
+  /* Motion — transitions across the app pull from these. */
+  --ease-editorial: cubic-bezier(0.2, 0.65, 0.3, 1);
+  --ease-cinematic: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Breakpoint for the wide "editorial desktop" layout that carries rail ads. */
+  --breakpoint-wide: 96rem;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    background-color: var(--color-void);
+    color: var(--color-ice);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-void);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+
+/* Oversized condensed uppercase is the house voice for headlines. */
+@utility display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.012em;
+  line-height: 0.86;
+  font-weight: 400;
+}
+
+/* ── On-load reveals (no JavaScript) ───────────────────────────────────────
+ * Above-the-fold content must never depend on hydration to become visible.
+ * These are pure CSS animations with `fill-mode: both`, so the element is
+ * hidden only while the animation is actually running — a visitor with JS
+ * disabled, or on a slow connection before hydration, still sees the content.
+ *
+ * The reduced-motion block further down collapses the duration to ~0, which
+ * with `both` lands immediately on the finished (visible) state.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes reveal-mask-up {
+  from {
+    clip-path: inset(100% 0% 0% 0%);
+    transform: translateY(12%);
+  }
+  to {
+    clip-path: inset(0% 0% 0% 0%);
+    transform: none;
+  }
+}
+
+@keyframes reveal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility reveal-mask {
+  animation: reveal-mask-up 1.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: clip-path, transform;
+}
+
+@utility reveal-rise {
+  animation: reveal-rise 0.6s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@utility grain {
+  position: relative;
+  isolation: isolate;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.2;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  }
+}
+
+/* Editorial hairline used between sections. */
+@utility rule-line {
+  border-top: 1px solid color-mix(in oklab, var(--color-steel) 34%, transparent);
+}
+
+/* The small uppercase label used for kickers, categories and slot labels. */
+@utility kicker {
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Standard page gutter, shared by every section so verticals line up. */
+@utility gutter {
+  padding-inline: 1.25rem;
+
+  @media (width >= 48rem) {
+    padding-inline: 2.5rem;
+  }
+
+  @media (width >= 80rem) {
+    padding-inline: 4rem;
+  }
+}
+
+/* Keeps the TV rows scrollable without a visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+
+/*
+ * Motion components read `prefers-reduced-motion` via a hook and skip their
+ * animations entirely. This is the backstop for CSS-driven transitions.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Article typography ────────────────────────────────────────────────── */
+
+/*
+ * Article bodies render on an ice-white "paper" slab — a deliberate inversion
+ * of the dark shell that reads like a printed insert and keeps long-form copy
+ * at comfortable contrast.
+ */
+.prose-editorial {
+  font-family: var(--font-serif);
+  color: var(--color-ink);
+  font-size: 1.125rem;
+  line-height: 1.68;
+}
+
+.prose-editorial > * + * {
+  margin-top: 1.5em;
+}
+
+.prose-editorial a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--color-accent);
+}
+
+.prose-editorial a:hover {
+  color: var(--color-accent-dim);
+}
+
+@media (width >= 48rem) {
+  .prose-editorial {
+    font-size: 1.1875rem;
+  }
+}

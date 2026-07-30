@@ -1,0 +1,6 @@
+.next/
+node_modules/
+public/
+dist/
+package-lock.json
+src/data/placeholders.generated.ts

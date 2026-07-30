@@ -1,0 +1,15 @@
+WEBVTT
+
+NOTE
+Placeholder caption track for the locally generated demo clip. It exists so the
+<track> wiring, the CC toggle and the captions styling can all be verified.
+Real caption files should be published through the CMS alongside the video.
+
+00:00:00.000 --> 00:00:04.000
+[Wind across an exposed ridge]
+
+00:00:04.000 --> 00:00:08.500
+Narrator: The reference slope has held snow for thirty-one winters.
+
+00:00:08.500 --> 00:00:12.000
+Narrator: This spring, it went bare in April.
