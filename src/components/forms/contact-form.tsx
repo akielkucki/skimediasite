@@ -6,7 +6,7 @@ import { FormResult, Honeypot, SelectField, TextArea, TextField } from "./fields
 import { submitContact } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/analytics";
-import { CONTACT_INTENTS, initialFormState, type ContactIntent } from "@/lib/forms";
+import { CONTACT_INTENTS, initialFormState } from "@/lib/forms";
 import { useEffect, useState } from "react";
 
 /**
@@ -15,10 +15,25 @@ import { useEffect, useState } from "react";
  * Progressive by construction: it is a real `<form action={...}>` bound to a
  * Server Action, so it works before hydration. `useActionState` adds the
  * pending/success/error states on top.
+ *
+ * The optional `?intent=` preselection is applied after mount from
+ * `location.search` rather than via `useSearchParams`, which would bail the
+ * whole form out of the page's static prerender. This way /contact stays
+ * fully static *and* the form exists in the no-JS HTML.
  */
-export function ContactForm({ defaultIntent }: { defaultIntent?: ContactIntent }) {
+export function ContactForm() {
   const [state, formAction] = useActionState(submitContact, initialFormState);
-  const [intent, setIntent] = useState<string>(defaultIntent ?? "general");
+  const [intent, setIntent] = useState<string>("general");
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("intent");
+    const preset = CONTACT_INTENTS.find((i) => i.value === raw)?.value;
+    // One-time init from the URL. Deliberately not `useSearchParams` (which
+    // would CSR-bail the static page) and deliberately post-hydration, so the
+    // server HTML and first client render agree.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (preset) setIntent(preset);
+  }, []);
 
   useEffect(() => {
     if (state.status === "idle") return;
@@ -47,7 +62,7 @@ export function ContactForm({ defaultIntent }: { defaultIntent?: ContactIntent }
         label="Reason for contact"
         required
         hint={active?.description}
-        defaultValue={state.values.intent ?? defaultIntent ?? "general"}
+        value={state.values.intent ?? intent}
         error={state.fieldErrors.intent}
         onValueChange={setIntent}
         options={CONTACT_INTENTS.map((i) => ({ value: i.value, label: i.label }))}

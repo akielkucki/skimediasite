@@ -21,7 +21,9 @@ export function Wordmark({ className, stacked = true }: { className?: string; st
           alt={name}
           width={wordmark.imageWidth}
           height={wordmark.imageHeight}
-          priority
+          // Small, above the fold on every route: load eagerly, but leave the
+          // page's single image preload to the hero.
+          loading="eager"
         />
       </Link>
     );

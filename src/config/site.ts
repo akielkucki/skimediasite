@@ -65,12 +65,15 @@ export type AdSlotConfig = {
  * accounted for and a missing one is a compile error, not a silent no-op.
  */
 const AD_SLOTS: Record<AdPlacementKey, AdSlotConfig> = {
+  // Desktop-only: on phones the leaderboard pushed the publication's own
+  // headline below the first viewport. Mobile monetisation uses the lower
+  // inline placements instead.
   "global-leaderboard": {
     enabled: true,
     label: "Leaderboard",
     width: 970,
     height: 90,
-    mobileHeight: 112,
+    desktopOnly: true,
   },
   "editorial-rail-left": {
     enabled: false,
@@ -153,8 +156,8 @@ export const siteConfig = {
   editorialEmail: "tips@northaspect.example",
   /** REPLACE ME */
   sponsorshipEmail: "partners@northaspect.example",
-  /** REPLACE ME */
-  addressLines: ["Placeholder Studio", "Innsbruck, Austria"],
+  /** REPLACE ME — leave empty to hide postal-address surfaces entirely. */
+  addressLines: [] as string[],
 
   /* ── URLs ────────────────────────────────────────────────────────────── */
   /**
@@ -190,11 +193,11 @@ export const siteConfig = {
   /** Secondary nav rendered inside the /tv experience. */
   tvNav: [
     { label: "All", href: "/tv" },
-    { label: "Series", href: "/tv?collection=original-series" },
-    { label: "Films", href: "/tv?collection=ski-films" },
-    { label: "Athletes", href: "/tv?collection=athlete-profiles" },
-    { label: "Destinations", href: "/tv?collection=destination-stories" },
-    { label: "Technique", href: "/tv?collection=technique" },
+    { label: "Series", href: "/tv/collections/original-series" },
+    { label: "Films", href: "/tv/collections/ski-films" },
+    { label: "Athletes", href: "/tv/collections/athlete-profiles" },
+    { label: "Destinations", href: "/tv/collections/destination-stories" },
+    { label: "Technique", href: "/tv/collections/technique" },
   ] satisfies NavItem[],
 
   footerNav: {
@@ -206,8 +209,8 @@ export const siteConfig = {
     ],
     Watch: [
       { label: "TV home", href: "/tv" },
-      { label: "Original series", href: "/tv?collection=original-series" },
-      { label: "Ski films", href: "/tv?collection=ski-films" },
+      { label: "Original series", href: "/tv/collections/original-series" },
+      { label: "Ski films", href: "/tv/collections/ski-films" },
       { label: "Submit a film", href: "/contact?intent=video-submission" },
     ],
     Partner: [

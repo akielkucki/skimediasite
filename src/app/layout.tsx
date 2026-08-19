@@ -1,37 +1,40 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Geist, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
+import { RouteTracker } from "@/components/analytics/trackers";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { siteConfig } from "@/config/site";
+import { assertProductionConfig, isIndexable } from "@/lib/env";
 import { organisationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/utils";
 
+// Fail a production build/startup on placeholder configuration (localhost
+// canonicals, `.example` contacts, missing content source). See lib/env.ts.
+assertProductionConfig();
+
 /**
- * Three typefaces, each with one job:
- *   Anton         — oversized condensed uppercase headlines (the house voice)
- *   Geist         — UI, navigation, metadata, decks
- *   Source Serif  — long-form article bodies
+ * Two typefaces load globally, each with one job:
+ *   Anton — oversized condensed uppercase headlines (the house voice)
+ *   Geist — UI, navigation, metadata, decks
+ * The long-form serif (Source Serif 4) loads only on the article route — see
+ * src/app/articles/layout.tsx.
  *
- * All are self-hosted by `next/font`, so there is no render-blocking request
- * to a font CDN and no layout shift from a late swap.
+ * All font files are vendored in src/fonts with their OFL license texts, so
+ * builds never depend on Google Fonts network availability, and `next/font`
+ * self-hosts them with size-adjusted fallbacks (no layout shift).
  */
-const display = Anton({
+const display = localFont({
+  src: "../fonts/anton-latin-400.woff2",
   variable: "--font-anton",
-  subsets: ["latin"],
   weight: "400",
   display: "swap",
 });
 
-const sans = Geist({
+const sans = localFont({
+  src: "../fonts/geist-latin-variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const serif = Source_Serif_4({
-  variable: "--font-source-serif",
-  subsets: ["latin"],
+  weight: "100 900",
   display: "swap",
 });
 
@@ -62,7 +65,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     ...(siteConfig.seo.twitterHandle ? { site: siteConfig.seo.twitterHandle } : {}),
   },
-  robots: { index: true, follow: true },
+  // Previews and staging must never be indexed; production is.
+  robots: isIndexable ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
@@ -77,14 +81,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // Opts into Next's scroll-behaviour override on route changes, so
       // in-page smooth scrolling doesn't make navigation feel sluggish.
       data-scroll-behavior="smooth"
-      className={`${display.variable} ${sans.variable} ${serif.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-full antialiased`}
     >
       <head>
         {/*
           Backstop for the scroll-triggered reveals below the fold: they start
-          hidden and are animated in by Motion, so without JavaScript they
-          would never appear. Above-the-fold reveals are CSS-only and don't
-          need this (see components/motion/on-load.tsx).
+          hidden and are revealed by an IntersectionObserver, so without
+          JavaScript they would never appear. Above-the-fold reveals are
+          CSS-only and don't need this (see components/motion/on-load.tsx).
         */}
         <noscript>
           <style>{`[data-reveal]{opacity:1!important;transform:none!important;clip-path:none!important}`}</style>
@@ -105,6 +109,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
 
         <SiteFooter />
+
+        {siteConfig.monetization.analyticsProvider ? <RouteTracker /> : null}
 
         <script
           type="application/ld+json"

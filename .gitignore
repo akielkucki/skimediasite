@@ -45,3 +45,6 @@ next-env.d.ts
 # sanity studio build output
 /dist
 /.sanity
+test-results/
+playwright-report/
+/.idea/

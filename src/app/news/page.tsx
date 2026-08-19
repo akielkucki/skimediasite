@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ArticleIndex } from "@/components/editorial/article-index";
 import { siteConfig } from "@/config/site";
-import { getArticles } from "@/lib/cms";
+import { getArticleFacets, getArticles } from "@/lib/cms";
 import { pageMetadata } from "@/lib/seo";
 
 const PER_PAGE = 9;
@@ -35,12 +35,12 @@ export default async function NewsPage({ searchParams }: PageProps<"/news">) {
     excludeIds: featured ? [featured._id] : [],
   });
 
-  const all = await getArticles({ kind: [...KINDS] });
-  const tags = [...new Set(all.items.flatMap((a) => a.tags))].sort().slice(0, 18);
+  const facets = await getArticleFacets([...KINDS]);
+  const tags = facets.tags.slice(0, 18);
 
   const categories = siteConfig.categories.news.map((c) => ({
     ...c,
-    count: all.items.filter((a) => a.category.slug === c.slug).length,
+    count: facets.categoryCounts[c.slug] ?? 0,
   }));
 
   return (

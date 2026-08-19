@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/trackers";
 import { SponsorLogo } from "@/components/ui/primitives";
 import { StaggerGroup, StaggerItem } from "@/components/motion/primitives";
 import { siteConfig } from "@/config/site";
@@ -31,17 +32,33 @@ export function SponsorLogoCloud({
     >
       <p className="kicker text-steel">{label}</p>
       <StaggerGroup as="div" className="flex flex-wrap items-center gap-x-12 gap-y-6">
-        {sponsors.map((sponsor) => (
-          <StaggerItem key={sponsor._id}>
-            <Link
-              href={`/sponsors#${sponsor.slug}`}
-              className="block opacity-60 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100"
-            >
+        {sponsors.map((sponsor) => {
+          const linkClass =
+            "block opacity-60 transition-opacity duration-300 hover:opacity-100 focus-visible:opacity-100";
+          const inner = (
+            <>
               <SponsorLogo sponsor={sponsor} tone={tone} />
               <span className="sr-only">— {sponsor.tier} partner</span>
-            </Link>
-          </StaggerItem>
-        ))}
+            </>
+          );
+          return (
+            <StaggerItem key={sponsor._id}>
+              {siteConfig.monetization.analyticsProvider ? (
+                <TrackedLink
+                  href={`/sponsors#${sponsor.slug}`}
+                  className={linkClass}
+                  event={{ name: "sponsor_click", sponsor: sponsor.slug, surface: label }}
+                >
+                  {inner}
+                </TrackedLink>
+              ) : (
+                <Link href={`/sponsors#${sponsor.slug}`} className={linkClass}>
+                  {inner}
+                </Link>
+              )}
+            </StaggerItem>
+          );
+        })}
       </StaggerGroup>
     </section>
   );

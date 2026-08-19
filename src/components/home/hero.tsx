@@ -1,6 +1,5 @@
 import Image from "next/image";
-import { HeroMedia } from "@/components/motion/primitives";
-import { MaskIn, RiseIn } from "@/components/motion/on-load";
+import { HeroMedia, MaskIn, RiseIn } from "@/components/motion/on-load";
 import { Arrow, ButtonLink } from "@/components/ui/button";
 import { Kicker, SponsoredBadge } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
@@ -26,10 +25,11 @@ export function HomeHero({ article, video }: { article: Article; video: Video | 
     >
       <HeroMedia>
         <Image
-          src={article.hero.src}
+          src={"/photos/hero.jpg"}
           alt={article.hero.alt}
           fill
-          priority
+          // The LCP element: the route's single intentional image preload.
+          preload
           sizes="100vw"
           placeholder={article.hero.blurDataURL ? "blur" : undefined}
           blurDataURL={article.hero.blurDataURL}
@@ -62,7 +62,7 @@ export function HomeHero({ article, video }: { article: Article; video: Video | 
           category tabs) so contrast holds against any photograph an editor
           publishes, not just this one.
         */}
-        <RiseIn delay={0.1}>
+        <RiseIn delay={0.05}>
           <div className="flex flex-wrap items-center gap-2">
             <Kicker accent className="bg-void/90 px-2.5 py-1.5 backdrop-blur-sm">
               {siteConfig.editorialTagline}
@@ -78,12 +78,14 @@ export function HomeHero({ article, video }: { article: Article; video: Video | 
           id="hero-heading"
           className="display max-w-[15ch] text-balance text-[clamp(2.75rem,10vw,8.5rem)] text-ice"
         >
-          {/* Word-by-word mask so the headline arrives like a title card. */}
+          {/* Word-by-word mask so the headline arrives like a title card.
+              Timings are tight on purpose: the full copy block must be
+              readable well under half a second after first paint. */}
           {article.title.split(" ").map((word, i) => (
             <MaskIn
               key={`${word}-${i}`}
               as="span"
-              delay={0.12 + i * 0.08}
+              delay={0.06 + i * 0.05}
               className="inline-block overflow-hidden pr-[0.22em] align-bottom"
             >
               {word}
@@ -91,11 +93,11 @@ export function HomeHero({ article, video }: { article: Article; video: Video | 
           ))}
         </h1>
 
-        <RiseIn delay={0.42} className="max-w-2xl">
+        <RiseIn delay={0.22} className="max-w-2xl">
           <p className="text-pretty leading-relaxed text-pale sm:text-lg">{article.dek}</p>
         </RiseIn>
 
-        <RiseIn delay={0.52}>
+        <RiseIn delay={0.3}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <ButtonLink href={`/articles/${article.slug}`} size="lg">
               Read the feature
@@ -109,7 +111,7 @@ export function HomeHero({ article, video }: { article: Article; video: Video | 
           </div>
         </RiseIn>
 
-        <RiseIn delay={0.6}>
+        <RiseIn delay={0.38}>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-mist">
             <span>{article.author.name}</span>
             <span aria-hidden="true">·</span>

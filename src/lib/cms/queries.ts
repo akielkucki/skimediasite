@@ -78,6 +78,45 @@ export const articlesQuery = `
   | order(publishedAt desc) { ${ARTICLE_FIELDS} }
 `;
 
+/**
+ * Filtered/paginated article listing. All params are always supplied by the
+ * caller (null disables a clause), so filtering, search and pagination run
+ * inside Sanity instead of over the whole archive in app memory.
+ */
+const ARTICLE_FILTERS = `
+  _type == "article" && defined(slug.current) && !(_id in path("drafts.**"))
+  && ($kinds == null || kind in $kinds)
+  && ($category == null || category->slug.current == $category)
+  && ($tagFilter == null || $tagFilter in tags)
+  && !(_id in $excludeIds)
+  && ($search == null || title match $search || dek match $search || $search in tags)
+`;
+
+export const articlesFilteredQuery = `
+*[${ARTICLE_FILTERS}] | order(publishedAt desc) [$offset...$end] { ${ARTICLE_FIELDS} }
+`;
+
+export const articlesFilteredCountQuery = `count(*[${ARTICLE_FILTERS}])`;
+
+/**
+ * Light facet read for the index pages: distinct tags and category slugs only
+ * — never the full documents — so the tag cloud and category counts don't
+ * require fetching the archive.
+ */
+export const articleFacetsQuery = `{
+  "tags": array::unique(*[_type == "article" && defined(slug.current)
+    && !(_id in path("drafts.**")) && kind in $kinds].tags[]),
+  "categories": *[_type == "article" && defined(slug.current)
+    && !(_id in path("drafts.**")) && kind in $kinds]{
+      "slug": category->slug.current
+    }.slug
+}`;
+
+export const authorsQuery = `
+*[_type == "author" && defined(slug.current) && !(_id in path("drafts.**"))]
+  | order(name asc) ${AUTHOR}
+`;
+
 export const articleBySlugQuery = `
 *[_type == "article" && slug.current == $slug && !(_id in path("drafts.**"))][0]
   { ${ARTICLE_DETAIL_FIELDS} }
@@ -89,6 +128,14 @@ export const articleSlugsQuery = `
 
 export const videosQuery = `
 *[_type == "video" && defined(slug.current) && !(_id in path("drafts.**"))]
+  | order(releaseDate desc) { ${VIDEO_FIELDS} }
+`;
+
+/** Server-side video search, matched inside Sanity. */
+export const videosSearchQuery = `
+*[_type == "video" && defined(slug.current) && !(_id in path("drafts.**"))
+  && (title match $search || summary match $search || description match $search
+      || $search in categories || $search in tags)]
   | order(releaseDate desc) { ${VIDEO_FIELDS} }
 `;
 

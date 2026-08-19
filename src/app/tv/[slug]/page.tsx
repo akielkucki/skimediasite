@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ContentViewTracker } from "@/components/analytics/trackers";
+import { siteConfig } from "@/config/site";
 import { MediaPlayer } from "@/components/tv/media-player";
 import { VideoCard } from "@/components/tv/video-card";
 import { ShareControls } from "@/components/editorial/share";
@@ -50,6 +52,11 @@ export default async function VideoPage({ params }: PageProps<"/tv/[slug]">) {
 
   return (
     <article>
+      {siteConfig.monetization.analyticsProvider ? (
+        <ContentViewTracker
+          event={{ name: "video_view", slug: video.slug, provider: video.source.provider }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(videoJsonLd(video)) }}
@@ -135,7 +142,7 @@ export default async function VideoPage({ params }: PageProps<"/tv/[slug]">) {
                 duration={video.duration}
                 slug={video.slug}
                 ownership={video.ownership}
-                priority
+                preload
               />
 
               <p className="max-w-2xl text-pretty leading-relaxed text-pale">{video.description}</p>
@@ -201,7 +208,7 @@ export default async function VideoPage({ params }: PageProps<"/tv/[slug]">) {
                   <Kicker>Categories</Kicker>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {video.categories.map((category) => (
-                      <Tag key={category} href={`/tv?collection=${category}`}>
+                      <Tag key={category} href={`/tv/collections/${category}`}>
                         {category.replace(/-/g, " ")}
                       </Tag>
                     ))}

@@ -2,36 +2,43 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  AnimatePresence,
-  motion,
-  useMotionValueEvent,
-  useReducedMotion,
-  useScroll,
-} from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Wordmark } from "./wordmark";
 import { siteConfig } from "@/config/site";
-import { EASE_CINEMATIC, EASE_EDITORIAL } from "@/lib/motion";
+import { realSocialLinks } from "@/lib/env";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 /**
  * The site header.
  *
- * Client-side because of three interactions: the scroll-condensed background,
- * the mobile drawer and the search overlay. Everything it renders is derived
- * from `siteConfig` — changing the brand name or the nav array in one file
- * updates this component with no edits here.
+ * Client-side for three interactions — the scroll-condensed background, the
+ * mobile drawer and the search overlay — all implemented with a scroll
+ * listener, a native `<dialog>` and CSS transitions. No animation library is
+ * loaded on this path (or anywhere else in the app).
+ *
+ * The drawer is a real modal: `showModal()` gives a focus trap, an inert
+ * background, Escape-to-close and focus restoration natively.
  */
 export function HeaderBar() {
   const pathname = usePathname();
-  const reduced = useReducedMotion();
-  const { scrollY } = useScroll();
   const [condensed, setCondensed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useMotionValueEvent(scrollY, "change", (v) => setCondensed(v > 48));
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setCondensed(window.scrollY > 48));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   // Route changes close every overlay — otherwise the drawer survives a nav.
   // Adjusted during render (React's documented pattern) rather than in an
@@ -43,26 +50,15 @@ export function HeaderBar() {
     setSearchOpen(false);
   }
 
-  // Escape closes whichever overlay is open.
+  // Escape closes the search panel (the dialog handles its own Escape).
   useEffect(() => {
-    if (!menuOpen && !searchOpen) return;
+    if (!searchOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-        setSearchOpen(false);
-      }
+      if (e.key === "Escape") setSearchOpen(false);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen, searchOpen]);
-
-  // Lock background scroll while the drawer is open.
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuOpen]);
+  }, [searchOpen]);
 
   const isActive = (href: string) => {
     const base = href.split("?")[0];
@@ -98,8 +94,8 @@ export function HeaderBar() {
                 >
                   {item.label}
                   {isActive(item.href) ? (
-                    <motion.span
-                      layoutId={reduced ? undefined : "nav-underline"}
+                    <span
+                      aria-hidden="true"
                       className="absolute -bottom-0.5 left-0 h-px w-full bg-current"
                     />
                   ) : null}
@@ -131,7 +127,7 @@ export function HeaderBar() {
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-expanded={menuOpen}
-              aria-controls="mobile-nav"
+              aria-haspopup="dialog"
               className="flex size-11 items-center justify-center text-ice lg:hidden"
             >
               <span className="sr-only">Open menu</span>
@@ -140,14 +136,10 @@ export function HeaderBar() {
           </div>
         </nav>
 
-        <AnimatePresence initial={false}>
-          {searchOpen ? <SearchPanel onClose={() => setSearchOpen(false)} /> : null}
-        </AnimatePresence>
+        {searchOpen ? <SearchPanel onClose={() => setSearchOpen(false)} /> : null}
       </header>
 
-      <AnimatePresence>
-        {menuOpen ? <MobileNav onClose={() => setMenuOpen(false)} isActive={isActive} /> : null}
-      </AnimatePresence>
+      <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} isActive={isActive} />
     </>
   );
 }
@@ -157,7 +149,7 @@ export function HeaderBar() {
 const SEARCH_SCOPES = [
   { value: "/news", label: "News" },
   { value: "/blog", label: "Blog" },
-  { value: "/tv", label: "TV" },
+  { value: "/tv/search", label: "TV" },
 ] as const;
 
 /**
@@ -167,7 +159,6 @@ const SEARCH_SCOPES = [
  */
 function SearchPanel({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const reduced = useReducedMotion();
   const inputRef = useRef<HTMLInputElement>(null);
   const [scope, setScope] = useState<string>("/news");
   const id = useId();
@@ -177,13 +168,9 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <motion.div
+    <div
       id="site-search"
-      initial={reduced ? false : { height: 0, opacity: 0 }}
-      animate={{ height: "auto", opacity: 1 }}
-      exit={reduced ? undefined : { height: 0, opacity: 0 }}
-      transition={{ duration: 0.3, ease: EASE_EDITORIAL }}
-      className="overflow-hidden border-t border-steel/25 bg-void/95 backdrop-blur-md"
+      className="search-panel-in overflow-hidden border-t border-steel/25 bg-void/95 backdrop-blur-md"
     >
       <form
         role="search"
@@ -191,7 +178,10 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
         onSubmit={(e) => {
           e.preventDefault();
           const value = inputRef.current?.value.trim() ?? "";
-          router.push(value ? `${scope}?q=${encodeURIComponent(value)}` : scope);
+          if (value) track({ name: "search", query: value, scope });
+          router.push(
+            value ? `${scope}?q=${encodeURIComponent(value)}` : scope.replace(/\/search$/, ""),
+          );
           onClose();
         }}
       >
@@ -212,7 +202,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
             <label
               key={s.value}
               className={cn(
-                "kicker cursor-pointer border px-3 py-2 transition-colors",
+                "kicker flex min-h-11 cursor-pointer items-center border px-3 transition-colors",
                 scope === s.value
                   ? "border-accent bg-accent/10 text-accent"
                   : "border-steel/40 text-mist hover:border-ice hover:text-ice",
@@ -237,53 +227,76 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           Search
         </button>
       </form>
-    </motion.div>
+    </div>
   );
 }
 
 /* ── Mobile drawer ─────────────────────────────────────────────────────── */
 
 function MobileNav({
+  open,
   onClose,
   isActive,
 }: {
+  open: boolean;
   onClose: () => void;
   isActive: (href: string) => boolean;
 }) {
-  const reduced = useReducedMotion();
-  const panelRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const social = realSocialLinks(siteConfig.social);
 
-  // Move focus into the drawer so keyboard users aren't stranded behind it.
+  // `showModal()` provides most of the modal contract natively: the rest of
+  // the page is inert, Escape closes, and focus returns to the opener on
+  // close. The Tab handler below completes the trap — without it, tabbing
+  // past the last control hands focus to the browser chrome.
   useEffect(() => {
-    panelRef.current?.querySelector<HTMLElement>("a, button")?.focus();
-  }, []);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  const trapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusables = Array.from(
+      dialog.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    }
+  };
+
+  // Lock background scroll while the drawer is open.
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[60] lg:hidden"
-      initial={reduced ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={reduced ? undefined : { opacity: 0 }}
-      transition={{ duration: 0.2 }}
+    <dialog
+      ref={dialogRef}
+      aria-label="Site menu"
+      onClose={onClose}
+      onClick={(e) => {
+        // A click on the backdrop lands on the dialog element itself.
+        if (e.target === dialogRef.current) onClose();
+      }}
+      onKeyDown={trapTab}
+      className="drawer m-0 h-full max-h-none w-full max-w-none bg-transparent p-0 backdrop:bg-void/80 backdrop:backdrop-blur-sm lg:hidden"
     >
-      <button
-        type="button"
-        aria-label="Close menu"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-void/80 backdrop-blur-sm"
-      />
-      <motion.div
-        ref={panelRef}
-        id="mobile-nav"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Site menu"
-        initial={reduced ? false : { x: "100%" }}
-        animate={{ x: 0 }}
-        exit={reduced ? undefined : { x: "100%" }}
-        transition={{ duration: 0.42, ease: EASE_CINEMATIC }}
-        className="grain absolute inset-y-0 right-0 flex w-full max-w-sm flex-col border-l border-steel/25 bg-ink"
-      >
+      <div className="grain ml-auto flex h-full w-full max-w-sm flex-col border-l border-steel/25 bg-ink text-ice">
         <div className="flex items-center justify-between border-b border-steel/25 px-5 py-3">
           <Wordmark stacked={false} />
           <button
@@ -299,12 +312,10 @@ function MobileNav({
         <nav aria-label="Mobile" className="flex-1 overflow-y-auto px-5 py-6">
           <ul className="flex flex-col">
             {siteConfig.mainNav.map((item, index) => (
-              <motion.li
+              <li
                 key={item.href}
-                initial={reduced ? false : { opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: reduced ? 0 : 0.08 + index * 0.05, ease: EASE_CINEMATIC }}
-                className="border-b border-steel/20"
+                className="drawer-item border-b border-steel/20"
+                style={{ animationDelay: `${0.06 + index * 0.05}s` }}
               >
                 <Link
                   href={item.href}
@@ -320,29 +331,35 @@ function MobileNav({
                     <span className="text-sm text-mist">{item.description}</span>
                   ) : null}
                 </Link>
-              </motion.li>
+              </li>
             ))}
           </ul>
         </nav>
 
-        <div className="border-t border-steel/25 px-5 py-5">
-          <p className="kicker mb-3 text-steel">{siteConfig.tagline}</p>
-          <ul className="flex flex-wrap gap-x-5 gap-y-2">
-            {siteConfig.social.map((s) => (
-              <li key={s.label}>
-                <a
-                  href={s.href}
-                  className="kicker text-mist transition-colors hover:text-ice"
-                  rel="noopener noreferrer"
-                >
-                  {s.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </motion.div>
-    </motion.div>
+        {social.length > 0 ? (
+          <div className="border-t border-steel/25 px-5 py-5">
+            <p className="kicker mb-3 text-steel">{siteConfig.tagline}</p>
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+              {social.map((s) => (
+                <li key={s.label}>
+                  <a
+                    href={s.href}
+                    className="kicker inline-flex min-h-11 items-center text-mist transition-colors hover:text-ice"
+                    rel="noopener noreferrer"
+                  >
+                    {s.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="kicker border-t border-steel/25 px-5 py-5 text-steel">
+            {siteConfig.tagline}
+          </p>
+        )}
+      </div>
+    </dialog>
   );
 }
 

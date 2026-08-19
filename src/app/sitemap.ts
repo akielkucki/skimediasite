@@ -1,11 +1,15 @@
 import type { MetadataRoute } from "next";
 import { siteConfig } from "@/config/site";
-import { getArticles, getVideos } from "@/lib/cms";
+import { getArticles, getCollections, getVideos } from "@/lib/cms";
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [articles, videos] = await Promise.all([getArticles(), getVideos()]);
+  const [articles, videos, collections] = await Promise.all([
+    getArticles(),
+    getVideos(),
+    getCollections(),
+  ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteConfig.url, changeFrequency: "hourly", priority: 1 },
@@ -15,6 +19,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteConfig.url}/sponsors`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteConfig.url}/about`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${siteConfig.url}/contact`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteConfig.url}/privacy`, changeFrequency: "yearly", priority: 0.2 },
+    ...collections.map((c) => ({
+      url: `${siteConfig.url}/tv/collections/${c.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    })),
   ];
 
   return [

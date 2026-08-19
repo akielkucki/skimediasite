@@ -5,14 +5,20 @@ import { SocialIcon } from "@/components/ui/social-icon";
 import { SponsorLogo } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
 import { getFeaturedSponsors } from "@/lib/cms";
+import { newsletterEnabled, realSocialLinks } from "@/lib/env";
 
 export async function SiteFooter() {
   const sponsors = await getFeaturedSponsors(6);
   const year = new Date().getFullYear();
+  // Generic platform-root links from the seed config are dropped rather than
+  // rendered as fake handles; /rss.xml always survives the filter.
+  const social = realSocialLinks(siteConfig.social);
 
   return (
     <footer className="grain mt-24 border-t border-steel/25 bg-ink">
-      {siteConfig.newsletter.enabled ? (
+      {/* The newsletter band renders only when a mailing-list provider is
+          actually connected (always visible in development for testing). */}
+      {newsletterEnabled ? (
         <section
           aria-labelledby="newsletter-heading"
           className="gutter border-b border-steel/25 py-14"
@@ -60,20 +66,22 @@ export async function SiteFooter() {
         <div className="flex flex-col items-start gap-5">
           <Wordmark />
           <p className="max-w-xs text-sm leading-relaxed text-mist">{siteConfig.description}</p>
-          <ul className="flex flex-wrap gap-2">
-            {siteConfig.social.map((s) => (
-              <li key={s.label}>
-                <a
-                  href={s.href}
-                  rel="noopener noreferrer"
-                  className="flex size-11 items-center justify-center border border-steel/30 text-mist transition-colors hover:border-ice hover:text-ice"
-                >
-                  <span className="sr-only">{s.label}</span>
-                  <SocialIcon icon={s.icon} />
-                </a>
-              </li>
-            ))}
-          </ul>
+          {social.length > 0 ? (
+            <ul className="flex flex-wrap gap-2">
+              {social.map((s) => (
+                <li key={s.label}>
+                  <a
+                    href={s.href}
+                    rel="noopener noreferrer"
+                    className="flex size-11 items-center justify-center border border-steel/30 text-mist transition-colors hover:border-ice hover:text-ice"
+                  >
+                    <span className="sr-only">{s.label}</span>
+                    <SocialIcon icon={s.icon} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <nav aria-label="Footer" className="grid gap-10 sm:grid-cols-3">
@@ -102,13 +110,18 @@ export async function SiteFooter() {
           © {year} {siteConfig.name}. {siteConfig.tagline}.
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <Link href="/privacy" className="transition-colors hover:text-ice">
+            Privacy &amp; terms
+          </Link>
           <a
             href={`mailto:${siteConfig.contactEmail}`}
             className="transition-colors hover:text-ice"
           >
             {siteConfig.contactEmail}
           </a>
-          <span>{siteConfig.addressLines.join(" · ")}</span>
+          {siteConfig.addressLines.length > 0 ? (
+            <span>{siteConfig.addressLines.join(" · ")}</span>
+          ) : null}
         </div>
       </div>
     </footer>

@@ -1,15 +1,20 @@
+import { cache } from "react";
 import { isCmsConfigured, sanityClient } from "./client";
-import { mapArticle, mapPromotion, mapShow, mapSponsor, mapVideo } from "./map";
+import { mapArticle, mapAuthor, mapPromotion, mapShow, mapSponsor, mapVideo } from "./map";
 import * as q from "./queries";
 import { articles as mockArticles } from "@/data/articles";
+import { authors as mockAuthors } from "@/data/authors";
 import { promotions as mockPromotions } from "@/data/promotions";
 import { sponsors as mockSponsors } from "@/data/sponsors";
 import { shows as mockShows, videos as mockVideos } from "@/data/videos";
 import { siteConfig } from "@/config/site";
+import { demoContentEnabled, isProduction } from "@/lib/env";
+import { reportError, reportWarning } from "@/lib/monitoring";
 import { estimateReadingTime, matchesSearch } from "@/lib/utils";
 import type {
   Article,
   ArticleQuery,
+  Author,
   MediaCollection,
   Paginated,
   Promotion,
@@ -19,27 +24,34 @@ import type {
 } from "@/types/content";
 
 /**
- * The content API.
+ * The content API. Every page imports from here and from nowhere else.
  *
- * Every page imports from here and from nowhere else. Two sources sit behind
- * it — Sanity, and the local seed data — and the choice is made per call:
+ * Source resolution, per call:
  *
- *   1. No `NEXT_PUBLIC_SANITY_PROJECT_ID`  → local seed data.
- *   2. CMS configured but the query fails  → local seed data, with a warning.
- *   3. CMS configured and returns nothing  → local seed data (an empty dataset
- *      almost always means "not seeded yet", not "the publication has no
- *      articles"), again with a warning.
+ *   1. CMS configured, query succeeds     → CMS result. In production an empty
+ *      result **stays empty** — it is never silently replaced with seed data.
+ *   2. CMS configured, query fails        → in production: an empty result,
+ *      reported through the monitoring hook. Fictional seed articles must
+ *      never masquerade as journalism because an API call failed.
+ *   3. No CMS, or (in development) an empty/failed CMS read → local seed data,
+ *      but only where `demoContentEnabled` allows it (always in development;
+ *      in production only behind NEXT_PUBLIC_ENABLE_DEMO_CONTENT=true).
  *
- * That third rule is what makes `npm run dev` useful the moment credentials
- * are added but before any content exists.
+ * Malformed CMS documents are skipped, counted and reported — one bad publish
+ * degrades one card, not a route.
  */
 
 const REVALIDATE = siteConfig.cms.revalidateSeconds;
 
+/** Seed data, or nothing at all when seed content is not permitted. */
+function seed<T>(list: T[]): T[] {
+  return demoContentEnabled ? list : [];
+}
+
 async function fromCms<T>(
   query: string,
   params: Record<string, unknown>,
-  map: (raw: unknown) => T | null,
+  map: (raw: unknown) => T | null | undefined,
   tag: string,
 ): Promise<T[] | null> {
   if (!sanityClient) return null;
@@ -47,32 +59,81 @@ async function fromCms<T>(
     const raw = await sanityClient.fetch<unknown[]>(query, params, {
       next: { revalidate: REVALIDATE, tags: [tag] },
     });
-    const mapped = (Array.isArray(raw) ? raw : []).map(map).filter((x): x is T => x !== null);
-    return mapped.length > 0 ? mapped : null;
+    const rows = Array.isArray(raw) ? raw : [];
+    const mapped = rows.map(map).filter((x): x is T => x != null);
+    if (mapped.length < rows.length) {
+      reportWarning("cms", `skipped malformed ${tag} documents`, {
+        tag,
+        skipped: rows.length - mapped.length,
+      });
+    }
+    // Development nicety: an empty dataset usually means "not seeded yet", so
+    // fall through to local content. Production returns the truth.
+    if (mapped.length === 0 && !isProduction) return null;
+    return mapped;
   } catch (error) {
-    console.warn(`[cms] query "${tag}" failed, falling back to local content.`, error);
-    return null;
+    reportError("cms", error, { tag });
+    return isProduction ? [] : null;
   }
 }
 
-/** True when pages are being rendered from `src/data/` rather than a CMS. */
+/** True when pages are rendering from `src/data/` rather than a CMS. */
 export function usingLocalContent() {
-  return !isCmsConfigured;
+  return !isCmsConfigured && demoContentEnabled;
 }
 
 /* ── Articles ──────────────────────────────────────────────────────────── */
 
-async function allArticles(): Promise<Article[]> {
+const allArticles = cache(async (): Promise<Article[]> => {
   const cms = await fromCms(q.articlesQuery, {}, mapArticle, "article");
-  const list = cms ?? mockArticles;
+  const list = cms ?? seed(mockArticles);
   return [...list].sort(
     (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
   );
-}
+});
 
+/**
+ * Filtered, paginated article reads.
+ *
+ * When Sanity is configured, filtering/search/pagination run inside GROQ so
+ * the archive is never fetched wholesale into application memory. The seed
+ * path filters in memory (it is a small fixed array).
+ */
 export async function getArticles(query: ArticleQuery = {}): Promise<Paginated<Article>> {
   const { kind, category, tag, search, limit, offset = 0, excludeIds = [] } = query;
   const kinds = kind ? (Array.isArray(kind) ? kind : [kind]) : null;
+
+  if (sanityClient) {
+    const params = {
+      kinds,
+      category: category ?? null,
+      // `tag` is a reserved key in the Sanity client's QueryParams.
+      tagFilter: tag ?? null,
+      // GROQ `match` uses word-prefix semantics; mirror the seed behaviour.
+      search: search ? `*${search.trim()}*` : null,
+      excludeIds,
+      offset,
+      end: limit ? offset + limit : 10_000,
+    };
+    try {
+      const [rows, total] = await Promise.all([
+        sanityClient.fetch<unknown[]>(q.articlesFilteredQuery, params, {
+          next: { revalidate: REVALIDATE, tags: ["article"] },
+        }),
+        sanityClient.fetch<number>(q.articlesFilteredCountQuery, params, {
+          next: { revalidate: REVALIDATE, tags: ["article"] },
+        }),
+      ]);
+      const items = (Array.isArray(rows) ? rows : [])
+        .map(mapArticle)
+        .filter((a): a is Article => a !== null);
+      return { items, total, hasMore: offset + items.length < total };
+    } catch (error) {
+      reportError("cms", error, { tag: "article:filtered" });
+      if (isProduction) return { items: [], total: 0, hasMore: false };
+      /* development falls through to seed data below */
+    }
+  }
 
   const filtered = (await allArticles()).filter((article) => {
     if (kinds && !kinds.includes(article.kind)) return false;
@@ -99,7 +160,7 @@ export async function getArticles(query: ArticleQuery = {}): Promise<Paginated<A
   };
 }
 
-export async function getArticle(slug: string): Promise<Article | null> {
+export const getArticle = cache(async (slug: string): Promise<Article | null> => {
   if (sanityClient) {
     try {
       const raw = await sanityClient.fetch<unknown>(
@@ -111,15 +172,17 @@ export async function getArticle(slug: string): Promise<Article | null> {
       if (mapped) {
         return { ...mapped, readingTime: mapped.readingTime ?? estimateReadingTime(mapped.body) };
       }
+      if (isProduction) return null;
     } catch (error) {
-      console.warn(`[cms] article "${slug}" failed, falling back to local content.`, error);
+      reportError("cms", error, { tag: "article:slug" });
+      if (isProduction) return null;
     }
   }
-  const local = mockArticles.find((a) => a.slug === slug) ?? null;
+  const local = seed(mockArticles).find((a) => a.slug === slug) ?? null;
   return local
     ? { ...local, readingTime: local.readingTime ?? estimateReadingTime(local.body) }
     : null;
-}
+});
 
 export async function getArticleSlugs(): Promise<string[]> {
   if (sanityClient) {
@@ -127,23 +190,22 @@ export async function getArticleSlugs(): Promise<string[]> {
       const slugs = await sanityClient.fetch<string[]>(
         q.articleSlugsQuery,
         {},
-        {
-          next: { revalidate: REVALIDATE, tags: ["article"] },
-        },
+        { next: { revalidate: REVALIDATE, tags: ["article"] } },
       );
-      if (slugs?.length) return slugs;
-    } catch {
-      /* fall through to local slugs */
+      if (slugs?.length || isProduction) return slugs ?? [];
+    } catch (error) {
+      reportError("cms", error, { tag: "article:slugs" });
+      if (isProduction) return [];
     }
   }
-  return mockArticles.map((a) => a.slug);
+  return seed(mockArticles).map((a) => a.slug);
 }
 
 /** The single lead story for the homepage. */
 export async function getLeadArticle(): Promise<Article | null> {
-  const { items } = await getArticles({ limit: 1 });
-  const featured = (await allArticles()).find((a) => a.featured && a.kind === "feature");
-  return featured ?? items[0] ?? null;
+  const all = await allArticles();
+  const featured = all.find((a) => a.featured && a.kind === "feature");
+  return featured ?? all[0] ?? null;
 }
 
 export async function getRelatedArticles(article: Article, limit = 3): Promise<Article[]> {
@@ -170,21 +232,86 @@ export async function getRelatedArticles(article: Article, limit = 3): Promise<A
   return [...explicit, ...scored.map((x) => x.article)].slice(0, limit);
 }
 
+/**
+ * Facets for the index pages: distinct tags plus per-category counts. In CMS
+ * mode this reads slugs and tags only — the archive itself is never fetched
+ * to build a filter bar.
+ */
+export async function getArticleFacets(
+  kinds: Article["kind"][],
+): Promise<{ tags: string[]; categoryCounts: Record<string, number> }> {
+  if (sanityClient) {
+    try {
+      const raw = await sanityClient.fetch<{ tags: string[]; categories: string[] }>(
+        q.articleFacetsQuery,
+        { kinds },
+        { next: { revalidate: REVALIDATE, tags: ["article"] } },
+      );
+      const categoryCounts: Record<string, number> = {};
+      for (const slug of raw?.categories ?? []) {
+        if (slug) categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
+      }
+      return { tags: (raw?.tags ?? []).filter(Boolean).sort(), categoryCounts };
+    } catch (error) {
+      reportError("cms", error, { tag: "article:facets" });
+      if (isProduction) return { tags: [], categoryCounts: {} };
+    }
+  }
+
+  const all = (await allArticles()).filter((a) => kinds.includes(a.kind));
+  const categoryCounts: Record<string, number> = {};
+  for (const a of all) {
+    categoryCounts[a.category.slug] = (categoryCounts[a.category.slug] ?? 0) + 1;
+  }
+  return {
+    tags: [...new Set(all.flatMap((a) => a.tags))].sort(),
+    categoryCounts,
+  };
+}
+
+/* ── Authors ───────────────────────────────────────────────────────────── */
+
+export const getAuthors = cache(async (): Promise<Author[]> => {
+  const cms = await fromCms(q.authorsQuery, {}, (raw) => mapAuthor(raw), "author");
+  return cms ?? seed(mockAuthors);
+});
+
 /* ── Videos ────────────────────────────────────────────────────────────── */
 
-async function allVideos(): Promise<Video[]> {
+const allVideos = cache(async (): Promise<Video[]> => {
   const cms = await fromCms(q.videosQuery, {}, mapVideo, "video");
-  const list = cms ?? mockVideos;
+  const list = cms ?? seed(mockVideos);
   return [...list].sort(
     (a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime(),
   );
-}
+});
 
 export async function getVideos(): Promise<Video[]> {
   return allVideos();
 }
 
-export async function getVideo(slug: string): Promise<Video | null> {
+/** Server-side search over the catalogue, pushed into GROQ when possible. */
+export async function searchVideos(query: string): Promise<Video[]> {
+  if (sanityClient) {
+    try {
+      const rows = await sanityClient.fetch<unknown[]>(
+        q.videosSearchQuery,
+        { search: `*${query.trim()}*` },
+        { next: { revalidate: REVALIDATE, tags: ["video"] } },
+      );
+      return (Array.isArray(rows) ? rows : []).map(mapVideo).filter((v): v is Video => v !== null);
+    } catch (error) {
+      reportError("cms", error, { tag: "video:search" });
+      if (isProduction) return [];
+    }
+  }
+  const all = await allVideos();
+  return all.filter((v) =>
+    matchesSearch([v.title, v.summary, v.description, ...v.categories, ...v.tags], query),
+  );
+}
+
+export const getVideo = cache(async (slug: string): Promise<Video | null> => {
   if (sanityClient) {
     try {
       const raw = await sanityClient.fetch<unknown>(
@@ -194,12 +321,14 @@ export async function getVideo(slug: string): Promise<Video | null> {
       );
       const mapped = mapVideo(raw);
       if (mapped) return mapped;
+      if (isProduction) return null;
     } catch (error) {
-      console.warn(`[cms] video "${slug}" failed, falling back to local content.`, error);
+      reportError("cms", error, { tag: "video:slug" });
+      if (isProduction) return null;
     }
   }
-  return mockVideos.find((v) => v.slug === slug) ?? null;
-}
+  return seed(mockVideos).find((v) => v.slug === slug) ?? null;
+});
 
 export async function getVideoSlugs(): Promise<string[]> {
   if (sanityClient) {
@@ -207,16 +336,15 @@ export async function getVideoSlugs(): Promise<string[]> {
       const slugs = await sanityClient.fetch<string[]>(
         q.videoSlugsQuery,
         {},
-        {
-          next: { revalidate: REVALIDATE, tags: ["video"] },
-        },
+        { next: { revalidate: REVALIDATE, tags: ["video"] } },
       );
-      if (slugs?.length) return slugs;
-    } catch {
-      /* fall through */
+      if (slugs?.length || isProduction) return slugs ?? [];
+    } catch (error) {
+      reportError("cms", error, { tag: "video:slugs" });
+      if (isProduction) return [];
     }
   }
-  return mockVideos.map((v) => v.slug);
+  return seed(mockVideos).map((v) => v.slug);
 }
 
 export async function getFeaturedVideo(): Promise<Video | null> {
@@ -319,6 +447,10 @@ const ROW_DEFINITIONS: Array<{
   },
 ];
 
+/** Cards per row on the programmed /tv front. Deeper browsing goes through
+ *  the collection filter, so the front page stays light. */
+const ROW_CAP = 6;
+
 export async function getCollections(filterSlug?: string): Promise<MediaCollection[]> {
   const all = await allVideos();
   const definitions = filterSlug
@@ -326,22 +458,51 @@ export async function getCollections(filterSlug?: string): Promise<MediaCollecti
     : ROW_DEFINITIONS;
 
   return definitions
-    .map((def) => ({
-      slug: def.slug,
-      title: def.title,
-      description: def.description,
-      shape: def.shape,
-      videos: all.filter(def.match),
-    }))
+    .map((def) => {
+      const matches = all.filter(def.match);
+      return {
+        slug: def.slug,
+        title: def.title,
+        description: def.description,
+        shape: def.shape,
+        videos: filterSlug ? matches : matches.slice(0, ROW_CAP),
+        total: matches.length,
+      };
+    })
     .filter((row) => row.videos.length > 0);
+}
+
+/** Programmed collection slugs, for prerendering /tv/collections/[slug]. */
+export function getCollectionSlugs(): string[] {
+  return ROW_DEFINITIONS.map((d) => d.slug);
+}
+
+/**
+ * A single, uncapped collection. Unknown slugs fall back to a plain category
+ * match so `/tv/collections/technique` and a raw video category both resolve.
+ */
+export async function getCollection(slug: string): Promise<MediaCollection | null> {
+  const all = await allVideos();
+  const def = ROW_DEFINITIONS.find((d) => d.slug === slug);
+  const matches = def ? all.filter(def.match) : all.filter((v) => v.categories.includes(slug));
+  if (matches.length === 0) return null;
+
+  return {
+    slug,
+    title: def?.title ?? slug.replace(/-/g, " "),
+    description: def?.description,
+    shape: def?.shape,
+    videos: matches,
+    total: matches.length,
+  };
 }
 
 /* ── Shows ─────────────────────────────────────────────────────────────── */
 
-export async function getShows(): Promise<Show[]> {
+export const getShows = cache(async (): Promise<Show[]> => {
   const cms = await fromCms(q.showsQuery, {}, mapShow, "show");
-  return cms ?? mockShows;
-}
+  return cms ?? seed(mockShows);
+});
 
 export async function getShowForVideo(
   video: Video,
@@ -357,10 +518,10 @@ export async function getShowForVideo(
 
 /* ── Sponsors ──────────────────────────────────────────────────────────── */
 
-export async function getSponsors(): Promise<Sponsor[]> {
+export const getSponsors = cache(async (): Promise<Sponsor[]> => {
   const cms = await fromCms(q.sponsorsQuery, {}, (raw) => mapSponsor(raw) ?? null, "sponsor");
-  return cms ?? mockSponsors;
-}
+  return cms ?? seed(mockSponsors);
+});
 
 export async function getFeaturedSponsors(limit?: number): Promise<Sponsor[]> {
   const all = await getSponsors();
@@ -376,9 +537,13 @@ export async function getFeaturedSponsors(limit?: number): Promise<Sponsor[]> {
 
 /* ── Promotions ────────────────────────────────────────────────────────── */
 
-export async function getPromotion(placement: string): Promise<Promotion | null> {
+const allPromotions = cache(async (): Promise<Promotion[]> => {
   const cms = await fromCms(q.promotionsQuery, {}, mapPromotion, "promotion");
-  const all = cms ?? mockPromotions;
+  return cms ?? seed(mockPromotions);
+});
+
+export async function getPromotion(placement: string): Promise<Promotion | null> {
+  const all = await allPromotions();
   const now = Date.now();
 
   return (

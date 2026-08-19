@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/forms/contact-form";
 import { MaskIn } from "@/components/motion/on-load";
+import { ButtonLink } from "@/components/ui/button";
 import { Kicker } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
-import { CONTACT_INTENTS, type ContactIntent } from "@/lib/forms";
+import { contactFormEnabled } from "@/lib/env";
+import { CONTACT_INTENTS } from "@/lib/forms";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -13,12 +15,15 @@ export const metadata: Metadata = pageMetadata({
   path: "/contact",
 });
 
-export default async function ContactPage({ searchParams }: PageProps<"/contact">) {
-  const params = await searchParams;
-  const raw = Array.isArray(params.intent) ? params.intent[0] : params.intent;
-  const defaultIntent = CONTACT_INTENTS.find((i) => i.value === raw)?.value as
-    ContactIntent | undefined;
-
+/**
+ * Fully static: the optional `?intent=` preselection is applied client-side
+ * by the form after mount, so the page itself renders once at build time.
+ *
+ * When no form-delivery provider is configured, the submission UI is hidden
+ * entirely and the page leads with direct mailto routes instead — no public
+ * visitor ever sees "no provider connected" plumbing.
+ */
+export default function ContactPage() {
   return (
     <div className="gutter py-16 sm:py-24">
       <div className="grid gap-14 lg:grid-cols-[1fr_1.15fr] lg:gap-20">
@@ -51,21 +56,37 @@ export default async function ContactPage({ searchParams }: PageProps<"/contact"
             ))}
           </dl>
 
-          <div className="border-t border-steel/20 pt-8 text-sm text-steel">
-            <p className="kicker mb-3 text-steel">Post</p>
-            <address className="not-italic leading-relaxed">
-              {siteConfig.addressLines.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </address>
-          </div>
+          {siteConfig.addressLines.length > 0 ? (
+            <div className="border-t border-steel/20 pt-8 text-sm text-steel">
+              <p className="kicker mb-3 text-steel">Post</p>
+              <address className="not-italic leading-relaxed">
+                {siteConfig.addressLines.map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </address>
+            </div>
+          ) : null}
         </div>
 
-        <div className="border border-steel/25 p-6 sm:p-10">
-          <ContactForm defaultIntent={defaultIntent} />
-        </div>
+        {contactFormEnabled ? (
+          <div className="border border-steel/25 p-6 sm:p-10">
+            <ContactForm />
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-5 border border-steel/25 p-6 sm:p-10">
+            <Kicker accent>Email us directly</Kicker>
+            <h2 className="display text-3xl text-ice">One address reaches the newsroom</h2>
+            <p className="max-w-md text-sm leading-relaxed text-mist">
+              Write to us and we&rsquo;ll route it to the right desk. Include what you have, and how
+              we can verify it if it&rsquo;s a tip.
+            </p>
+            <ButtonLink href={`mailto:${siteConfig.contactEmail}`} size="lg">
+              {siteConfig.contactEmail}
+            </ButtonLink>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,13 +21,14 @@ type Variant = "default" | "wide" | "compact";
 export function ArticleCard({
   article,
   variant = "default",
-  priority = false,
+  preload = false,
   index,
   className,
 }: {
   article: Article;
   variant?: Variant;
-  priority?: boolean;
+  /** Preloads the crop — only for the one card that is the page's LCP. */
+  preload?: boolean;
   /** When supplied, renders a two-digit editorial index number. */
   index?: number;
   className?: string;
@@ -62,7 +63,7 @@ export function ArticleCard({
           }
           placeholder={article.hero.blurDataURL ? "blur" : undefined}
           blurDataURL={article.hero.blurDataURL}
-          priority={priority}
+          preload={preload}
           className={cn(
             "object-cover transition-transform duration-700 ease-[var(--ease-cinematic)]",
             "group-hover:scale-[1.04] group-focus-within:scale-[1.04]",

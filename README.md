@@ -1,7 +1,8 @@
 # North Aspect
 
 An editorial ski publication and streaming-style TV platform, built with Next.js 16 (App Router),
-TypeScript, Tailwind CSS v4 and Motion.
+TypeScript and Tailwind CSS v4. All motion is CSS + a shared IntersectionObserver — no animation
+library ships to the client.
 
 > **North Aspect is a placeholder brand.** The publication, its journalists, its sponsors and every
 > story in `src/data/` are invented. See [Changing the brand](#changing-the-brand).
@@ -24,26 +25,37 @@ npm run lint         # eslint
 npm run typecheck    # tsc --noEmit
 npm run format       # prettier --write
 npm run check        # format check + lint + typecheck, in one go
-npm run placeholders # regenerate the local placeholder artwork
+npm run placeholders # regenerate the procedural artwork (brand motif / empty states)
 npm run studio       # Sanity Studio on :3333 (needs credentials)
+npm run test:e2e     # Playwright smoke, a11y (axe), drawer, forms, sitemap crawl
+node scripts/import-pexels.mjs  # re-import the curated Pexels photo set
 ```
+
+**Production builds are guarded.** `next build` with `NODE_ENV=production` fails loudly if the
+canonical origin is unset/localhost, contact addresses are placeholders, or no content source is
+configured. To knowingly deploy the fictional demo content, set
+`NEXT_PUBLIC_ENABLE_DEMO_CONTENT=true` (see `.env.example`). Preview/staging deployments
+(`VERCEL_ENV=preview` or `NEXT_PUBLIC_DEPLOY_ENV=preview|staging`) are automatically `noindex`.
 
 ## What's here
 
-| Route              | What it is                                                               |
-| ------------------ | ------------------------------------------------------------------------ |
-| `/`                | Editorial homepage — cinematic hero, news, features, columns, TV band    |
-| `/news`            | News index: featured story, category filters, tags, search, load-more    |
-| `/blog`            | Blog & opinion index — same machinery, looser magazine layout            |
-| `/articles/[slug]` | Article template (all four content types live here)                      |
-| `/tv`              | Streaming-style TV landing page with programmed content rows             |
-| `/tv/[slug]`       | Video/show detail — player, credits, ownership disclosure, more episodes |
-| `/sponsors`        | Partnership formats, current partners, enquiry form                      |
-| `/contact`         | Five contact intents, routed to different desks                          |
-| `/about`           | Publication, standards, newsroom                                         |
-| `/rss.xml`         | Feed (sponsored items are labelled in the feed too)                      |
-| `/sitemap.xml`     | Generated from the content layer                                         |
-| `/robots.txt`      | Generated                                                                |
+| Route                    | What it is                                                               |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `/`                      | Editorial homepage — cinematic hero, news, features, columns, TV band    |
+| `/news`                  | News index: featured story, category filters, tags, search, load-more    |
+| `/blog`                  | Blog & opinion index — same machinery, looser magazine layout            |
+| `/articles/[slug]`       | Article template (all four content types live here)                      |
+| `/tv`                    | Streaming-style TV landing page with programmed content rows             |
+| `/tv/collections/[slug]` | Full collection view (static) — deep browsing behind the capped rows     |
+| `/tv/search`             | TV search results (the only dynamic TV route)                            |
+| `/tv/[slug]`             | Video/show detail — player, credits, ownership disclosure, more episodes |
+| `/sponsors`              | Partnership formats, current partners, enquiry form                      |
+| `/contact`               | Five contact intents, routed to different desks (static)                 |
+| `/privacy`               | Privacy & terms — kept true to what the codebase actually does           |
+| `/about`                 | Publication, standards, newsroom                                         |
+| `/rss.xml`               | Feed (sponsored items are labelled in the feed too)                      |
+| `/sitemap.xml`           | Generated from the content layer                                         |
+| `/robots.txt`            | Generated                                                                |
 
 ## Architecture
 
@@ -53,7 +65,9 @@ src/
   types/content.ts      ← the app's content contract
   lib/
     cms/                ← Sanity client, GROQ, mappers + local fallback
-    motion.ts           ← the shared motion vocabulary
+    env.ts              ← production guardrails, demo/seed gating, indexability
+    monitoring.ts       ← server-side error reporting hook
+    rate-limit.ts       ← form abuse-control extension point
     video.ts            ← provider-aware embed URL builders
     seo.ts              ← metadata + JSON-LD helpers
     access.ts           ← dormant monetization gate (always grants)
@@ -73,14 +87,18 @@ directly, which is what makes the CMS swappable and the no-credentials path reli
 ### Server vs client
 
 Server Components by default. The only Client Components are the ones that genuinely need
-interaction: the header (drawer, search, scroll state), the media player, the TV rows, the forms,
-the share controls, and the motion primitives.
+interaction: the header (drawer, search, scroll state), the media player, the tiny TV row
+scroller (the row markup and cards themselves are Server Components), the forms, the share
+controls, and the reveal primitives.
 
 ### Rendering
 
-- `/`, `/about`, `/sponsors` — static
-- `/articles/[slug]`, `/tv/[slug]` — statically generated from `generateStaticParams`, ISR at 300s
-- `/news`, `/blog`, `/tv`, `/contact` — dynamic (they read `searchParams` for filters and search)
+- `/`, `/about`, `/sponsors`, `/contact`, `/privacy`, `/tv` — static
+- `/articles/[slug]`, `/tv/[slug]`, `/tv/collections/[slug]` — statically generated, ISR at 300s
+- `/news`, `/blog`, `/tv/search` — dynamic (they read `searchParams` for filters and search).
+  When Sanity is configured, filtering/search/pagination run inside GROQ, not in app memory.
+  (Cache Components were evaluated for these routes and deliberately not enabled in this pass —
+  the searchParams-driven pages are already thin, and the model change touches every route.)
 
 ## Changing the brand
 
@@ -110,11 +128,17 @@ For a real logo, set `wordmark.image` to a path in `/public`; the header switche
 
 ## Imagery
 
-`/public/placeholders` contains 30 procedurally-drawn alpine compositions (layered ridgelines,
-contour intervals, carved tracks, weather-map banding) generated by
-`scripts/generate-placeholders.mjs`. They exist so the design can be reviewed with no third-party
-photography and no licensing questions. Regenerate with `npm run placeholders`; replace by
-publishing real images through the CMS.
+`/public/photos` holds the curated editorial photo set: 21 photographs from Pexels, downloaded and
+optimised by `scripts/import-pexels.mjs` (no runtime hotlinking, no API key required). The typed
+manifest `src/data/photos.generated.ts` records, for every asset: Pexels photo id, source page
+URL, photographer name + profile URL, local file, intrinsic size, alt text, credit line, focal
+point and intended surfaces. Photographer credits render in editorial figcaptions. No photograph
+of an identifiable person is attached to a fictional byline or presented as endorsing a seed
+sponsor.
+
+`/public/placeholders` contains the procedurally-drawn alpine compositions
+(`scripts/generate-placeholders.mjs`), retained as a brand motif for empty states and texture —
+not as editorial photography.
 
 `/public/media/ridge-line-loop.mp4` is a 12-second locally generated clip that backs the
 first-party (`hosted`) player path so it works with no network access. The runtimes shown in the
@@ -123,8 +147,13 @@ seed data are editorial metadata and don't match this placeholder file.
 ## Accessibility & performance notes
 
 - Above-the-fold reveals are **CSS-only** (`src/components/motion/on-load.tsx`) so headlines paint
-  with the first frame rather than waiting for hydration. Scroll-triggered reveals use Motion and
+  with the first frame rather than waiting for hydration; hero copy is fully readable in well under
+  half a second. Scroll-triggered reveals use one shared IntersectionObserver + CSS transitions and
   have a `<noscript>` backstop in the root layout.
+- Fonts are vendored in `src/fonts` (with their OFL license texts) and served via
+  `next/font/local`; the long-form serif loads only on the article route.
+- The mobile drawer is a native `<dialog>`: focus trap, inert background, Escape, focus restore.
+- Exactly one intentional image preload per route (the LCP hero); nothing below the fold preloads.
 - All motion honours `prefers-reduced-motion`, in the components and again in `globals.css`.
 - Hero and TV-hero text contrast is measured against the actual rendered backdrop, not estimated —
   the eyebrow labels carry their own scrim chips because a bright snow crop otherwise drops them to

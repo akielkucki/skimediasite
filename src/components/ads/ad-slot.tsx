@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { TrackedLink } from "@/components/analytics/trackers";
 import { siteConfig, type AdPlacementKey } from "@/config/site";
 import { getPromotion } from "@/lib/cms";
 import { cn } from "@/lib/utils";
@@ -28,10 +29,13 @@ export async function AdSlot({
   className,
   /** Overrides the config label, e.g. "Promotional placement" for house promos. */
   label,
+  /** "light" adapts the disclosure label for the paper reading slab. */
+  tone = "dark",
 }: {
   placement: AdPlacementKey;
   className?: string;
   label?: string;
+  tone?: "dark" | "light";
 }) {
   if (!siteConfig.ads.enabled) return null;
 
@@ -50,9 +54,17 @@ export async function AdSlot({
   return (
     <aside
       aria-label={disclosure}
-      className={cn("flex w-full flex-col items-center gap-2", className)}
+      className={cn(
+        "w-full flex-col items-center gap-2",
+        // `desktopOnly` placements disappear entirely on small screens so
+        // monetisation never pushes the publication's own headline off the
+        // first mobile viewport.
+        slot.desktopOnly ? "hidden md:flex" : "flex",
+        className,
+      )}
     >
-      <p className="kicker text-steel">{disclosure}</p>
+      {/* Steel fails 4.5:1 on the light paper slab; slate holds it. */}
+      <p className={cn("kicker", tone === "light" ? "text-slate" : "text-steel")}>{disclosure}</p>
       <AdCreative
         promotion={promotion}
         width={slot.width}
@@ -154,13 +166,30 @@ function AdCreative({
 
   if (!promotion.href) return box;
 
+  // Paid placements should not pass link equity.
+  const rel = promotion.creativeType === "house" ? undefined : "sponsored nofollow";
+
+  // Click tracking hydrates only when an analytics provider is configured;
+  // otherwise the placement stays a plain server-rendered link.
+  if (siteConfig.monetization.analyticsProvider) {
+    return (
+      <TrackedLink
+        href={promotion.href}
+        className="block w-full"
+        rel={rel}
+        event={{
+          name: "ad_slot_click",
+          placement: promotion.placement,
+          sponsor: promotion.sponsor?.slug,
+        }}
+      >
+        {box}
+      </TrackedLink>
+    );
+  }
+
   return (
-    <Link
-      href={promotion.href}
-      className="block w-full"
-      // Paid placements should not pass link equity.
-      rel={promotion.creativeType === "house" ? undefined : "sponsored nofollow"}
-    >
+    <Link href={promotion.href} className="block w-full" rel={rel}>
       {box}
     </Link>
   );

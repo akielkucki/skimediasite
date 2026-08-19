@@ -32,7 +32,7 @@ export function RichText({
           <Block block={block} />
           {adAfterBlock === index ? (
             <div className="not-prose my-12 border-y border-ink/10 py-6">
-              <AdSlot placement="article-inline" />
+              <AdSlot placement="article-inline" tone="light" />
             </div>
           ) : null}
         </Fragment>
@@ -97,9 +97,7 @@ function Block({ block }: { block: RichTextBlock }) {
           {block.image.caption || block.image.credit ? (
             <figcaption className="mt-3 flex flex-wrap gap-x-3 font-sans text-xs leading-relaxed text-slate">
               {block.image.caption ? <span>{block.image.caption}</span> : null}
-              {block.image.credit ? (
-                <span className="text-slate/70">{block.image.credit}</span>
-              ) : null}
+              {block.image.credit ? <span className="text-slate">{block.image.credit}</span> : null}
             </figcaption>
           ) : null}
         </figure>

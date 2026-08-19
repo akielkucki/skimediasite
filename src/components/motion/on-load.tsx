@@ -46,3 +46,16 @@ export function RiseIn({ children, className, delay = 0, as: Tag = "div" }: Prop
     </Tag>
   );
 }
+
+/**
+ * Hero media entrance: a slow scale-settle as the page loads. Pure CSS, so the
+ * opening frame needs no JavaScript and the photograph paints with the first
+ * frame. The wrapper's box is fixed, so this can never cause layout shift.
+ */
+export function HeroMedia({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("absolute inset-0 overflow-hidden", className)}>
+      <div className="hero-settle absolute inset-0">{children}</div>
+    </div>
+  );
+}

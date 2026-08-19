@@ -1,210 +1,123 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
-import { useRef, type ReactNode } from "react";
-import {
-  EASE_CINEMATIC,
-  IN_VIEW,
-  drawLine,
-  fadeUp,
-  maskUp,
-  stagger,
-  staticVariants,
-} from "@/lib/motion";
+import { createElement, useCallback, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The app's four motion primitives. Server Components compose these; nothing
- * else in the tree needs to be a Client Component to get animation.
+ * Scroll-triggered reveal primitives.
  *
- * Every one of them checks `prefers-reduced-motion` and, when set, renders the
- * final state with no transition at all.
+ * Implemented with one shared IntersectionObserver and CSS transitions — no
+ * animation library, no React state, no re-render on reveal. The observer adds
+ * `is-visible` directly to the element and unobserves it; the transition
+ * itself lives in globals.css (see "Scroll reveals").
+ *
+ * `prefers-reduced-motion` is honoured in CSS: the hidden initial state is
+ * removed entirely, so content is simply visible.
+ *
+ * The `data-reveal` attribute keeps the <noscript> backstop in the root layout
+ * working: without JavaScript nothing stays hidden.
  */
 
+type RevealTag = "div" | "section" | "li" | "ul" | "article" | "header" | "figure" | "p";
+
 type RevealProps = {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
+  /** Seconds, matching the previous API. */
   delay?: number;
   /** `as` keeps semantics correct — a reveal wrapper shouldn't force a div. */
-  as?: "div" | "section" | "li" | "ul" | "article" | "header" | "figure" | "p";
+  as?: RevealTag;
 };
 
-/** Scroll-triggered entrance. The workhorse. */
-export function Reveal({ children, className, delay = 0, as = "div" }: RevealProps) {
-  const reduced = useReducedMotion();
-  const Component = motion[as];
+let observer: IntersectionObserver | null = null;
 
-  return (
-    <Component
-      data-reveal=""
-      className={className}
-      variants={reduced ? staticVariants : fadeUp}
-      initial="hidden"
-      whileInView="visible"
-      viewport={IN_VIEW}
-      transition={reduced ? { duration: 0 } : { delay }}
-    >
-      {children}
-    </Component>
-  );
+function useRevealRef() {
+  return useCallback((node: Element | null) => {
+    if (!node) return;
+    observer ??= new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer?.unobserve(entry.target);
+          }
+        }
+      },
+      { rootMargin: "0px 0px -10% 0px" },
+    );
+    observer.observe(node);
+    return () => observer?.unobserve(node);
+  }, []);
 }
 
-/** Container that cascades its `Reveal`-shaped children. */
-export function StaggerGroup({
+function RevealBase({
   children,
   className,
   delay = 0,
-  step = 0.07,
   as = "div",
-}: RevealProps & { step?: number }) {
-  const reduced = useReducedMotion();
-  const Component = motion[as];
-
-  return (
-    <Component
-      data-reveal=""
-      className={className}
-      variants={reduced ? staticVariants : stagger(delay, step)}
-      initial="hidden"
-      whileInView="visible"
-      viewport={IN_VIEW}
-    >
-      {children}
-    </Component>
+  revealClass,
+}: RevealProps & { revealClass: string }) {
+  const ref = useRevealRef();
+  return createElement(
+    as,
+    {
+      ref,
+      "data-reveal": "",
+      className: cn(revealClass, className),
+      style: delay ? { transitionDelay: `${delay}s` } : undefined,
+    },
+    children,
   );
 }
 
-/** Child of `StaggerGroup`. Inherits the parent's timing. */
-export function StaggerItem({ children, className, as = "div" }: RevealProps) {
-  const reduced = useReducedMotion();
-  const Component = motion[as];
-  return (
-    <Component data-reveal="" className={className} variants={reduced ? staticVariants : fadeUp}>
-      {children}
-    </Component>
-  );
+/** Fade-and-rise entrance. The workhorse. */
+export function Reveal(props: RevealProps) {
+  return <RevealBase {...props} revealClass="reveal-io" />;
 }
 
 /**
- * Clip-path wipe for headlines and hero imagery. `immediate` runs on mount
- * (hero) instead of waiting for the element to scroll into view.
+ * Container that cascades its children. Children get their stagger from CSS
+ * sibling order (see `.reveal-group` in globals.css), so `StaggerItem` costs
+ * nothing per item.
  */
-export function MaskReveal({
-  children,
-  className,
-  delay = 0,
-  immediate = false,
-  as = "div",
-}: RevealProps & { immediate?: boolean }) {
-  const reduced = useReducedMotion();
-  const Component = motion[as];
-
-  return (
-    <Component
-      data-reveal=""
-      className={className}
-      variants={reduced ? staticVariants : maskUp}
-      initial="hidden"
-      {...(immediate ? { animate: "visible" } : { whileInView: "visible", viewport: IN_VIEW })}
-      transition={reduced ? { duration: 0 } : { delay }}
-    >
-      {children}
-    </Component>
+export function StaggerGroup({ children, className, delay = 0, as = "div" }: RevealProps) {
+  const ref = useRevealRef();
+  return createElement(
+    as,
+    {
+      ref,
+      "data-reveal": "",
+      className: cn("reveal-group", className),
+      style: delay ? { transitionDelay: `${delay}s` } : undefined,
+    },
+    children,
   );
+}
+
+/** Child of `StaggerGroup`. Inherits its timing from sibling order. */
+export function StaggerItem({ children, className, as = "div" }: RevealProps) {
+  return createElement(
+    as,
+    { "data-reveal": "", className: cn("reveal-item", className) },
+    children,
+  );
+}
+
+/** Clip-path wipe for headlines. */
+export function MaskReveal(props: RevealProps) {
+  return <RevealBase {...props} revealClass="reveal-mask-io" />;
 }
 
 /** The animated editorial divider. Draws from the left on entry. */
 export function EditorialRule({ className, delay = 0 }: { className?: string; delay?: number }) {
-  const reduced = useReducedMotion();
+  const ref = useRevealRef();
   return (
-    <motion.div
+    <div
+      ref={ref}
       aria-hidden="true"
       data-reveal=""
-      className={cn("h-px w-full origin-left bg-steel/40", className)}
-      variants={reduced ? staticVariants : drawLine}
-      initial="hidden"
-      whileInView="visible"
-      viewport={IN_VIEW}
-      transition={reduced ? { duration: 0 } : { delay }}
+      className={cn("reveal-rule h-px w-full origin-left bg-steel/40", className)}
+      style={delay ? { transitionDelay: `${delay}s` } : undefined}
     />
-  );
-}
-
-/**
- * Controlled parallax. The child is oversized by `overscan` so the translation
- * never exposes an edge — which is also why this can't cause layout shift: the
- * wrapper's box is fixed and only the inner layer moves.
- */
-export function ParallaxLayer({
-  children,
-  className,
-  /** Travel distance as a fraction of the element height. Keep it small. */
-  strength = 0.12,
-  overscan = 1.18,
-}: {
-  children: ReactNode;
-  className?: string;
-  strength?: number;
-  overscan?: number;
-}) {
-  const reduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [`${-strength * 100}%`, `${strength * 100}%`]);
-
-  if (reduced) {
-    return (
-      <div ref={ref} className={cn("relative overflow-hidden", className)}>
-        {children}
-      </div>
-    );
-  }
-
-  return (
-    <div ref={ref} className={cn("relative overflow-hidden", className)}>
-      <motion.div
-        className="absolute inset-0 will-change-transform"
-        style={{ y, height: `${overscan * 100}%`, top: `${((1 - overscan) / 2) * 100}%` }}
-      >
-        {children}
-      </motion.div>
-    </div>
-  );
-}
-
-/**
- * Hero-only: a slow scale-down as the page loads, then a gentle scale-up on
- * scroll. Gives the opening frame a sense of scale without any camera-shake.
- */
-export function HeroMedia({ children, className }: { children: ReactNode; className?: string }) {
-  const reduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.14]);
-  const opacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.25]);
-
-  if (reduced) {
-    return (
-      <div ref={ref} className={cn("absolute inset-0", className)}>
-        {children}
-      </div>
-    );
-  }
-
-  return (
-    <div ref={ref} className={cn("absolute inset-0", className)}>
-      <motion.div
-        className="absolute inset-0 will-change-transform"
-        style={{ scale, opacity }}
-        initial={{ scale: 1.16 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 1.6, ease: EASE_CINEMATIC }}
-      >
-        {children}
-      </motion.div>
-    </div>
   );
 }

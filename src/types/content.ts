@@ -178,6 +178,9 @@ export type MediaCollection = {
   videos: Video[];
   /** Renders the row with poster-shaped cards instead of landscape stills. */
   shape?: "landscape" | "poster";
+  /** Total catalogue size — when larger than `videos.length` the row was
+   *  capped and links through to the full collection. */
+  total?: number;
 };
 
 /* ── Promotions ────────────────────────────────────────────────────────── */

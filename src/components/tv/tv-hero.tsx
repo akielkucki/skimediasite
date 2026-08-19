@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { MediaPlayer } from "./media-player";
-import { HeroMedia } from "@/components/motion/primitives";
-import { MaskIn, RiseIn } from "@/components/motion/on-load";
+import { HeroMedia, MaskIn, RiseIn } from "@/components/motion/on-load";
 import { Arrow, ButtonLink } from "@/components/ui/button";
 import { Kicker } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
@@ -33,7 +32,8 @@ export function TvHero({ video }: { video: Video }) {
           src={backdrop.src}
           alt={backdrop.alt}
           fill
-          priority
+          // The LCP element: the route's single intentional image preload.
+          preload
           sizes="100vw"
           placeholder={backdrop.blurDataURL ? "blur" : undefined}
           blurDataURL={backdrop.blurDataURL}
@@ -62,7 +62,7 @@ export function TvHero({ video }: { video: Video }) {
             </Kicker>
           </div>
 
-          <MaskIn delay={0.1}>
+          <MaskIn delay={0.06}>
             <h1
               id="tv-hero-heading"
               className="display text-balance text-[clamp(2.5rem,8vw,6rem)] text-ice"
@@ -71,7 +71,7 @@ export function TvHero({ video }: { video: Video }) {
             </h1>
           </MaskIn>
 
-          <RiseIn delay={0.3}>
+          <RiseIn delay={0.18}>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs uppercase tracking-[0.14em] text-mist">
               <span>{formatYear(video.releaseDate)}</span>
               <span aria-hidden="true">·</span>
@@ -95,11 +95,11 @@ export function TvHero({ video }: { video: Video }) {
             </p>
           </RiseIn>
 
-          <RiseIn delay={0.4}>
+          <RiseIn delay={0.24}>
             <p className="max-w-lg text-pretty leading-relaxed text-pale">{video.summary}</p>
           </RiseIn>
 
-          <RiseIn delay={0.5}>
+          <RiseIn delay={0.3}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <ButtonLink href={`/tv/${video.slug}`} size="lg">
                 Watch now
@@ -114,7 +114,7 @@ export function TvHero({ video }: { video: Video }) {
 
         {/* Inline preview so the billboard isn't only a still — but it stays
             click-to-play, and loads no player code until then. */}
-        <RiseIn delay={0.45} className="hidden lg:block">
+        <RiseIn delay={0.34} className="hidden lg:block">
           <MediaPlayer
             source={video.source}
             title={`${video.title} — preview`}

@@ -5,7 +5,40 @@ import type { Author } from "@/types/content";
 /**
  * Author byline. `full` is the biography block at the foot of an article;
  * the default is the compact byline that sits under the headline.
+ *
+ * When an author has no photograph, a typographic monogram renders instead —
+ * deliberately, so no stock face is ever presented as a real staff member.
  */
+
+function Monogram({
+  name,
+  size,
+  tone,
+}: {
+  name: string;
+  size: "sm" | "lg";
+  tone: "dark" | "light";
+}) {
+  const initials = name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "display flex shrink-0 items-center justify-center border",
+        size === "lg" ? "size-20 text-2xl" : "size-9 text-xs",
+        tone === "dark" ? "border-steel/40 text-mist" : "border-ink/25 text-slate",
+      )}
+    >
+      {initials}
+    </span>
+  );
+}
 export function AuthorByline({
   author,
   publishedAt,
@@ -43,7 +76,9 @@ export function AuthorByline({
             height={96}
             className="size-20 shrink-0 object-cover grayscale"
           />
-        ) : null}
+        ) : (
+          <Monogram name={author.name} size="lg" tone={tone} />
+        )}
         <div className="flex flex-col gap-2">
           <p className={cn("display text-xl", strong)}>{author.name}</p>
           {author.role ? <p className={cn("kicker", muted)}>{author.role}</p> : null}
@@ -65,7 +100,9 @@ export function AuthorByline({
           height={40}
           className="size-9 shrink-0 object-cover grayscale"
         />
-      ) : null}
+      ) : (
+        <Monogram name={author.name} size="sm" tone={tone} />
+      )}
       <span>
         By <span className={cn("font-medium", strong)}>{author.name}</span>
         {author.role ? <span className="hidden sm:inline">, {author.role}</span> : null}

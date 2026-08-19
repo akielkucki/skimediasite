@@ -78,8 +78,9 @@ export function Tag({
   className?: string;
 }) {
   const style = cn(
-    "kicker inline-flex items-center border border-steel/40 px-2.5 py-1.5 text-mist",
-    href && "transition-colors hover:border-ice hover:text-ice",
+    "kicker inline-flex items-center border border-steel/40 px-2.5 text-mist",
+    // Linked tags are touch targets and must clear 44px; static ones stay slim.
+    href ? "min-h-11 transition-colors hover:border-ice hover:text-ice" : "py-1.5",
     className,
   );
   return href ? (

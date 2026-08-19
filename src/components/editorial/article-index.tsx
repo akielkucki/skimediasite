@@ -84,7 +84,7 @@ export function ArticleIndex({
         {featured && page === 1 && !activeCategory && !activeTag && !query ? (
           <>
             <Reveal className="mb-14">
-              <ArticleCard article={featured} variant="wide" priority />
+              <ArticleCard article={featured} variant="wide" preload />
             </Reveal>
             <EditorialRule className="mb-12" />
           </>

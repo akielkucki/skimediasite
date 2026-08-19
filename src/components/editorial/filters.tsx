@@ -66,7 +66,7 @@ function FilterPill({
       href={href}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "kicker inline-flex items-center border px-3.5 py-2.5 transition-colors duration-200",
+        "kicker inline-flex min-h-11 items-center border px-3.5 transition-colors duration-200",
         active
           ? "border-accent bg-accent/10 text-accent"
           : "border-steel/35 text-mist hover:border-ice hover:text-ice",

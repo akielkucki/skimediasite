@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
+import { realSocialLinks } from "./env";
 import { absoluteUrl, isoDuration } from "./utils";
 import { embedUrlFor } from "./video";
 import type { Article, ImageAsset, SeoFields, Video } from "@/types/content";
@@ -91,6 +92,12 @@ export function pageMetadata({
 /* ── Structured data ───────────────────────────────────────────────────── */
 
 export function organisationJsonLd() {
+  // `sameAs` lists only social links that point at a real profile; generic
+  // platform roots from the seed config are dropped, not shipped as fake
+  // handles. The publisher logo is included only when a real one exists.
+  const sameAs = realSocialLinks(siteConfig.social.filter((s) => s.icon !== "rss")).map(
+    (s) => s.href,
+  );
   return {
     "@context": "https://schema.org",
     "@type": "NewsMediaOrganization",
@@ -98,7 +105,10 @@ export function organisationJsonLd() {
     url: siteConfig.url,
     description: siteConfig.description,
     email: siteConfig.contactEmail,
-    sameAs: siteConfig.social.filter((s) => s.icon !== "rss").map((s) => s.href),
+    ...(siteConfig.wordmark.image
+      ? { logo: { "@type": "ImageObject", url: absoluteUrl(siteConfig.wordmark.image) } }
+      : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
   };
 }
 
@@ -141,6 +151,9 @@ export function articleJsonLd(article: Article) {
       "@type": "Organization",
       name: siteConfig.name,
       url: siteConfig.url,
+      ...(siteConfig.wordmark.image
+        ? { logo: { "@type": "ImageObject", url: absoluteUrl(siteConfig.wordmark.image) } }
+        : {}),
     },
     mainEntityOfPage: {
       "@type": "WebPage",

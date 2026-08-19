@@ -132,10 +132,13 @@ export function TextArea({
 export function SelectField({
   options,
   onValueChange,
+  value,
   ...props
 }: BaseProps & {
   options: readonly { value: string; label: string }[];
   onValueChange?: (value: string) => void;
+  /** Controlled value; falls back to uncontrolled `defaultValue` when unset. */
+  value?: string;
 }) {
   const id = useId();
   return (
@@ -144,7 +147,7 @@ export function SelectField({
         id={id}
         name={props.name}
         required={props.required}
-        defaultValue={props.defaultValue}
+        {...(value !== undefined ? { value } : { defaultValue: props.defaultValue })}
         onChange={(e) => onValueChange?.(e.target.value)}
         aria-invalid={props.error ? true : undefined}
         aria-describedby={
@@ -170,12 +173,15 @@ export function SelectField({
   );
 }
 
-/** Hidden honeypot. Real users never see or focus it; bots fill it in. */
+/** Hidden honeypot. Real users never see or focus it; bots fill it in.
+ *  The id is generated per instance so multiple forms on one page (and
+ *  naive bot heuristics keying on a fixed id) never collide. */
 export function Honeypot() {
+  const id = useId();
   return (
     <div aria-hidden="true" className="absolute left-[-9999px] top-0 h-0 w-0 overflow-hidden">
-      <label htmlFor="website-field">Leave this field empty</label>
-      <input id="website-field" name="website" type="text" tabIndex={-1} autoComplete="off" />
+      <label htmlFor={id}>Leave this field empty</label>
+      <input id={id} name="website" type="text" tabIndex={-1} autoComplete="off" />
     </div>
   );
 }

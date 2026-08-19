@@ -1,4 +1,3 @@
-import { img } from "./media";
 import { sponsor } from "./sponsors";
 import type { Promotion } from "@/types/content";
 
@@ -28,11 +27,12 @@ export const promotions: Promotion[] = [
     active: true,
   },
   {
+    // Text creative on purpose: pairing third-party photography with an
+    // invented brand could imply the photo's subject endorses it.
     _id: "promo-rail-corniche",
     label: "Corniche Labs — right rail",
     placement: "editorial-rail-right",
-    creativeType: "image",
-    image: img("poster-04", "Promotional artwork for Corniche Labs"),
+    creativeType: "house",
     headline: "Corniche Labs",
     body: "Transceiver recall: check your serial.",
     href: "/articles/corniche-labs-transceiver-recall",

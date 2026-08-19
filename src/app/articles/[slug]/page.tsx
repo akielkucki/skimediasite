@@ -18,6 +18,8 @@ import {
   SponsorDisclosure,
   SponsoredBadge,
 } from "@/components/ui/primitives";
+import { ContentViewTracker } from "@/components/analytics/trackers";
+import { siteConfig } from "@/config/site";
 import { getArticle, getArticleSlugs, getRelatedArticles, getVideosByIds } from "@/lib/cms";
 import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { plainText, safeJsonLd } from "@/lib/utils";
@@ -78,6 +80,16 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
 
   return (
     <article>
+      {siteConfig.monetization.analyticsProvider ? (
+        <ContentViewTracker
+          event={{
+            name: "article_view",
+            slug: article.slug,
+            kind: article.kind,
+            sponsored: article.sponsored,
+          }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd(article)) }}
@@ -142,7 +154,7 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
               source={article.heroVideo}
               title={article.title}
               poster={article.hero}
-              priority
+              preload
             />
           ) : (
             <div className="relative aspect-[16/9] overflow-hidden bg-charcoal">
@@ -150,7 +162,8 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
                 src={article.hero.src}
                 alt={article.hero.alt}
                 fill
-                priority
+                // The LCP element: the route's single intentional preload.
+                preload
                 sizes="(max-width: 1280px) 100vw, 1152px"
                 placeholder={article.hero.blurDataURL ? "blur" : undefined}
                 blurDataURL={article.hero.blurDataURL}

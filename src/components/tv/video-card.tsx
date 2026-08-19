@@ -16,12 +16,10 @@ export function VideoCard({
   video,
   shape = "landscape",
   className,
-  priority = false,
 }: {
   video: Video;
   shape?: "landscape" | "poster";
   className?: string;
-  priority?: boolean;
 }) {
   const poster = shape === "poster";
   const image = poster ? (video.poster ?? video.thumbnail) : video.thumbnail;
@@ -45,15 +43,18 @@ export function VideoCard({
           "group-hover:-translate-y-1.5 group-focus-within:-translate-y-1.5",
         )}
       >
+        {/* Fixed-size (not `fill`) on purpose: cards render at a known width,
+            so Next emits a compact 1x/2x srcset instead of a nine-entry
+            responsive one — that srcset is repeated for every card in both
+            the HTML and the RSC payload, and it dominated /tv's page weight.
+            No LQIP either: a base64 blur per card is incompressible payload
+            ×2 per image, and the charcoal ground already covers the load. */}
         <Image
           src={image.src}
           alt={image.alt}
-          fill
-          sizes={poster ? "208px" : "320px"}
-          placeholder={image.blurDataURL ? "blur" : undefined}
-          blurDataURL={image.blurDataURL}
-          priority={priority}
-          className="object-cover transition-transform duration-700 ease-[var(--ease-cinematic)] group-hover:scale-105"
+          width={poster ? 208 : 320}
+          height={poster ? 312 : 180}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-[var(--ease-cinematic)] group-hover:scale-105"
         />
 
         <span className="absolute inset-0 bg-gradient-to-t from-void/85 via-void/10 to-transparent" />

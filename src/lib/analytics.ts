@@ -10,6 +10,7 @@ import { siteConfig } from "@/config/site";
  */
 
 export type AnalyticsEvent =
+  | { name: "page_view"; path: string }
   | { name: "article_view"; slug: string; kind: string; sponsored: boolean }
   | { name: "video_play"; slug: string; provider: string; ownership: string }
   | { name: "video_view"; slug: string; provider: string }
@@ -19,7 +20,7 @@ export type AnalyticsEvent =
   | { name: "sponsor_click"; sponsor: string; surface: string }
   | { name: "newsletter_submit"; result: "ok" | "error" | "unconfigured" }
   | { name: "contact_submit"; intent: string; result: "ok" | "error" | "unconfigured" }
-  | { name: "search"; query: string; scope: string; results: number };
+  | { name: "search"; query: string; scope: string; results?: number };
 
 export function track(event: AnalyticsEvent) {
   const provider = siteConfig.monetization.analyticsProvider;

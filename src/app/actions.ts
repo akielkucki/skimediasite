@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { siteConfig } from "@/config/site";
 import {
   CONTACT_INTENTS,
@@ -13,31 +14,40 @@ import {
   sponsorRules,
   type FormState,
 } from "@/lib/forms";
+import { reportError, reportWarning } from "@/lib/monitoring";
+import { isRateLimited } from "@/lib/rate-limit";
 import { formValues, validate } from "@/lib/validation";
 
 /**
  * Server actions for the site's three forms.
  *
  * ── Honesty rule ─────────────────────────────────────────────────────────
- * No email or form provider is configured in this project. These actions
- * therefore validate properly, log the submission server-side, and then say
- * *exactly that* — they never claim a message was delivered to a human.
+ * When no delivery provider is configured, the public UI hides these forms
+ * behind mailto fallbacks (see lib/env.ts). If a submission still arrives,
+ * the action validates it and says exactly what happened — it never claims a
+ * message was delivered to a human when it wasn't.
+ *
+ * ── Privacy rule ─────────────────────────────────────────────────────────
+ * Full form payloads and email addresses are never logged or reported to
+ * monitoring. Logs carry the form kind, a result and counts only.
+ * ─────────────────────────────────────────────────────────────────────────
  *
  * Connecting a real provider is a change to `deliver()` below and nothing
  * else. See docs/INTEGRATIONS.md.
- * ─────────────────────────────────────────────────────────────────────────
  */
 
 type Delivery = { delivered: boolean; detail: string };
+
+const DELIVERY_TIMEOUT_MS = 10_000;
 
 async function deliver(kind: string, payload: Record<string, string>): Promise<Delivery> {
   const endpoint = process.env.CONTACT_FORM_ENDPOINT;
   const apiKey = process.env.CONTACT_FORM_API_KEY;
 
   if (!endpoint) {
-    // Nothing to send to. Record it so the submission isn't silently lost in
-    // development, and report the truth back to the user.
-    console.info(`[forms] ${kind} submission received (no provider configured):`, payload);
+    // Nothing to send to. Record that it happened (not what it said) and
+    // report the truth back to the user.
+    reportWarning("forms", "submission received with no provider configured", { kind });
     return { delivered: false, detail: "no-provider" };
   }
 
@@ -50,16 +60,32 @@ async function deliver(kind: string, payload: Record<string, string>): Promise<D
       },
       body: JSON.stringify({ kind, ...payload }),
       cache: "no-store",
+      signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
     });
     if (!response.ok) {
+      reportWarning("forms", "provider rejected submission", { kind, status: response.status });
       return { delivered: false, detail: `provider responded ${response.status}` };
     }
     return { delivered: true, detail: "ok" };
   } catch (error) {
-    console.error(`[forms] ${kind} delivery failed`, error);
+    // The error may embed request details — report only its class.
+    reportError("forms", error instanceof Error ? error.name : "delivery-failure", { kind });
     return { delivered: false, detail: "network-error" };
   }
 }
+
+/** Coarse client identifier for rate limiting. Hashed before storage. */
+async function clientKey(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "unknown";
+}
+
+const RATE_LIMITED_STATE: FormState = {
+  status: "error",
+  message: "Too many submissions in a short time. Please wait a minute and try again.",
+  fieldErrors: {},
+  values: {},
+};
 
 const UNCONFIGURED_MESSAGE =
   "Your message passed validation, but this site has no email provider connected yet — so it has not been sent to anyone. Nothing has been delivered. Please email us directly in the meantime.";
@@ -73,6 +99,8 @@ export async function submitContact(_prev: FormState, formData: FormData): Promi
     // Honeypot tripped: behave as though it succeeded, do nothing.
     return { ...initialFormState, status: "success", message: "Thanks — your message is with us." };
   }
+
+  if (isRateLimited(`contact:${await clientKey()}`)) return RATE_LIMITED_STATE;
 
   const fieldErrors = validate(values, contactRules);
   if (Object.keys(fieldErrors).length > 0) {
@@ -126,6 +154,8 @@ export async function submitSponsorEnquiry(
   if (isSpam(values)) {
     return { ...initialFormState, status: "success", message: "Thanks — we'll be in touch." };
   }
+
+  if (isRateLimited(`sponsor:${await clientKey()}`)) return RATE_LIMITED_STATE;
 
   const fieldErrors = validate(values, sponsorRules);
   if (Object.keys(fieldErrors).length > 0) {
@@ -181,6 +211,8 @@ export async function subscribeNewsletter(
     return { ...initialFormState, status: "success", message: "Thanks — you're on the list." };
   }
 
+  if (isRateLimited(`newsletter:${await clientKey()}`)) return RATE_LIMITED_STATE;
+
   const fieldErrors = validate(values, newsletterRules);
   if (Object.keys(fieldErrors).length > 0) {
     return {
@@ -192,7 +224,9 @@ export async function subscribeNewsletter(
   }
 
   if (!siteConfig.newsletter.provider) {
-    console.info("[forms] newsletter signup received (no provider configured):", values.email);
+    reportWarning("forms", "newsletter signup received with no provider configured", {
+      kind: "newsletter",
+    });
     return {
       status: "unconfigured",
       message:

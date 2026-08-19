@@ -6,7 +6,8 @@ import { MaskIn } from "@/components/motion/on-load";
 import { Arrow, ButtonLink } from "@/components/ui/button";
 import { Kicker, SectionHeading } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
-import { authors } from "@/data/authors";
+import { photo } from "@/data/media";
+import { getAuthors, usingLocalContent } from "@/lib/cms";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -34,7 +35,10 @@ const COMMITMENTS = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const authors = (await getAuthors()).filter((a) => a.slug !== "newsroom");
+  const aboutImage = photo("chamonix-traverse");
+
   return (
     <>
       <section className="gutter border-b border-steel/20 pb-16 pt-16 sm:pt-24">
@@ -78,15 +82,22 @@ export default function AboutPage() {
             </ButtonLink>
           </div>
 
-          <Reveal delay={0.1} className="relative aspect-[4/5] overflow-hidden">
-            <Image
-              src="/placeholders/alpine-06.jpg"
-              alt="Abstract alpine ridgeline artwork"
-              fill
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-void/70 to-transparent" />
+          <Reveal delay={0.1} as="figure" className="relative">
+            <div className="relative aspect-[4/5] overflow-hidden">
+              <Image
+                src={aboutImage.src}
+                alt={aboutImage.alt}
+                fill
+                sizes="(max-width: 1024px) 100vw, 40vw"
+                placeholder={aboutImage.blurDataURL ? "blur" : undefined}
+                blurDataURL={aboutImage.blurDataURL}
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-void/70 to-transparent" />
+            </div>
+            {aboutImage.credit ? (
+              <figcaption className="mt-3 text-xs text-steel">{aboutImage.credit}</figcaption>
+            ) : null}
           </Reveal>
         </div>
       </section>
@@ -111,23 +122,24 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section aria-labelledby="newsroom-heading" className="gutter py-16 sm:py-24">
-        <SectionHeading kicker="Who writes this" title="The newsroom" className="mb-12" />
-        <div className="grid gap-10 md:grid-cols-2">
-          {authors
-            .filter((a) => a.slug !== "newsroom")
-            .map((author, i) => (
+      {authors.length > 0 ? (
+        <section aria-labelledby="newsroom-heading" className="gutter py-16 sm:py-24">
+          <SectionHeading kicker="Who writes this" title="The newsroom" className="mb-12" />
+          <div className="grid gap-10 md:grid-cols-2">
+            {authors.map((author, i) => (
               <Reveal key={author._id} delay={i * 0.04}>
                 <AuthorByline author={author} variant="full" />
               </Reveal>
             ))}
-        </div>
-        <EditorialRule className="mt-16" />
-        <p className="mt-8 max-w-2xl text-sm leading-relaxed text-steel">
-          Bylines shown here are development placeholders while the publication is being built.
-          Replace them by publishing real author records through the CMS.
-        </p>
-      </section>
+          </div>
+          <EditorialRule className="mt-16" />
+          {usingLocalContent() ? (
+            <p className="mt-8 max-w-2xl text-sm leading-relaxed text-steel">
+              The newsroom shown here is sample content for demonstration.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="gutter pb-24">
         <div className="flex flex-col gap-6 border border-steel/25 p-8 sm:flex-row sm:items-center sm:justify-between sm:p-12">

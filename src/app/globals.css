@@ -129,6 +129,148 @@
   will-change: opacity, transform;
 }
 
+/* ── Scroll reveals (IntersectionObserver + CSS, no animation library) ─────
+ * Elements start hidden and get `.is-visible` from a shared observer in
+ * components/motion/primitives.tsx. Under `prefers-reduced-motion`, and for
+ * no-JS visitors (see the <noscript> rule in the root layout), content is
+ * simply visible.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+.reveal-io,
+.reveal-group > .reveal-item {
+  opacity: 0;
+  transform: translateY(1.5rem);
+  transition:
+    opacity 0.55s var(--ease-editorial),
+    transform 0.55s var(--ease-editorial);
+}
+
+.reveal-io.is-visible,
+.reveal-group.is-visible > .reveal-item {
+  opacity: 1;
+  transform: none;
+}
+
+/* Cascade: items inherit their delay from sibling order (capped at 12). */
+.reveal-group.is-visible > .reveal-item:nth-child(2) {
+  transition-delay: 0.07s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(3) {
+  transition-delay: 0.14s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(4) {
+  transition-delay: 0.21s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(5) {
+  transition-delay: 0.28s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(6) {
+  transition-delay: 0.35s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(7) {
+  transition-delay: 0.42s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(8) {
+  transition-delay: 0.49s;
+}
+.reveal-group.is-visible > .reveal-item:nth-child(n + 9) {
+  transition-delay: 0.56s;
+}
+
+.reveal-mask-io {
+  clip-path: inset(100% 0% 0% 0%);
+  transform: translateY(10%);
+  transition:
+    clip-path 0.9s var(--ease-cinematic),
+    transform 0.9s var(--ease-cinematic);
+}
+
+.reveal-mask-io.is-visible {
+  clip-path: inset(0% 0% 0% 0%);
+  transform: none;
+}
+
+.reveal-rule {
+  transform: scaleX(0);
+  transition: transform 0.9s var(--ease-cinematic);
+}
+
+.reveal-rule.is-visible {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-io,
+  .reveal-group > .reveal-item,
+  .reveal-mask-io,
+  .reveal-rule {
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+    transition: none;
+  }
+}
+
+/* ── Header overlays (CSS-only enter animations) ───────────────────────── */
+
+@keyframes search-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.search-panel-in {
+  animation: search-panel-in 0.25s var(--ease-editorial) both;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes drawer-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+dialog.drawer[open] > * {
+  animation: drawer-in 0.42s var(--ease-cinematic) both;
+}
+
+dialog.drawer[open] .drawer-item {
+  animation: drawer-item-in 0.4s var(--ease-cinematic) both;
+}
+
+/* Hero media entrance: a slow scale-settle, CSS only. */
+@keyframes hero-settle {
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.hero-settle {
+  animation: hero-settle 1.6s var(--ease-cinematic) both;
+  will-change: transform;
+}
+
 @utility grain {
   position: relative;
   isolation: isolate;

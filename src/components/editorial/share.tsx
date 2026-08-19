@@ -60,7 +60,8 @@ export function ShareControls({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <span className={cn("kicker mr-1", tone === "dark" ? "text-steel" : "text-slate/70")}>
+      {/* Full-strength slate on paper: slate/70 fails 4.5:1 on the light slab. */}
+      <span className={cn("kicker mr-1", tone === "dark" ? "text-steel" : "text-slate")}>
         Share
       </span>
 

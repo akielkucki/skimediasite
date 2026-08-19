@@ -30,8 +30,8 @@ export function MediaPlayer({
   duration,
   className,
   tone = "dark",
-  /** Sets the facade image as an LCP candidate on detail pages. */
-  priority = false,
+  /** Preloads the facade image — the LCP element on detail pages. */
+  preload = false,
   slug,
   ownership,
 }: {
@@ -42,7 +42,7 @@ export function MediaPlayer({
   duration?: number;
   className?: string;
   tone?: "dark" | "light";
-  priority?: boolean;
+  preload?: boolean;
   slug?: string;
   ownership?: string;
 }) {
@@ -163,7 +163,7 @@ export function MediaPlayer({
               sizes="(max-width: 768px) 100vw, 900px"
               placeholder={poster.blurDataURL ? "blur" : undefined}
               blurDataURL={poster.blurDataURL}
-              priority={priority}
+              preload={preload}
               className="object-cover transition-transform duration-700 ease-[var(--ease-cinematic)] group-hover:scale-105"
             />
           ) : (

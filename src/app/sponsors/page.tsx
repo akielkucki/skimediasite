@@ -7,6 +7,7 @@ import { Kicker, SectionHeading } from "@/components/ui/primitives";
 import { Arrow, ButtonLink } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import { getSponsors } from "@/lib/cms";
+import { contactFormEnabled } from "@/lib/env";
 import { pageMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +21,10 @@ export const metadata: Metadata = pageMetadata({
 /**
  * Partnership formats.
  *
- * Note the absence of audience figures. This publication is fictional and has
- * no real reach data, so inventing "1.2M monthly readers" would be a
- * fabrication a real media kit would be judged on. The placeholders below are
- * explicitly labelled instead.
+ * Note the absence of audience figures. This publication has no audited reach
+ * data to show, so inventing "1.2M monthly readers" would be a fabrication a
+ * real media kit would be judged on. The page offers the media kit on request
+ * instead.
  */
 const FORMATS = [
   {
@@ -127,27 +128,23 @@ export default async function SponsorsPage() {
           </div>
 
           <Reveal delay={0.1} className="border border-steel/25 p-6">
-            <Kicker>Audience & positioning</Kicker>
+            <Kicker>Audience &amp; positioning</Kicker>
             <p className="mt-4 text-sm leading-relaxed text-mist">
               An independent ski publication covering news, long-form reporting and original film,
               read by skiers who tour, compete, guide, teach and work in the industry.
             </p>
-            <dl className="mt-6 flex flex-col gap-4 border-t border-steel/25 pt-6 text-sm">
-              {[
-                ["Monthly audience", "Figure not yet available"],
-                ["Newsletter subscribers", "Figure not yet available"],
-                ["Video minutes watched", "Figure not yet available"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-baseline justify-between gap-4">
-                  <dt className="text-steel">{label}</dt>
-                  <dd className="text-right text-ice">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-5 text-xs leading-relaxed text-steel">
-              These are deliberate placeholders. We publish audited figures in the media kit rather
-              than estimates on a web page — ask and we&rsquo;ll send the current numbers.
-            </p>
+            <div className="mt-6 border-t border-steel/25 pt-6">
+              <p className="text-sm leading-relaxed text-pale">
+                We publish audited audience figures in the media kit, not estimates on a web page.
+                The current media kit is available on request.
+              </p>
+              <a
+                href={`mailto:${siteConfig.sponsorshipEmail}?subject=Media%20kit%20request`}
+                className="kicker mt-5 inline-flex min-h-11 items-center text-accent underline-offset-4 hover:underline"
+              >
+                Request the media kit →
+              </a>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -254,7 +251,7 @@ export default async function SponsorsPage() {
               figures, and availability for the season.
             </p>
             <p className="text-sm text-steel">
-              Or write directly:{" "}
+              {contactFormEnabled ? "Or write directly: " : "Write to the partnerships desk: "}
               <a
                 href={`mailto:${siteConfig.sponsorshipEmail}`}
                 className="text-ice underline underline-offset-4"
@@ -263,7 +260,9 @@ export default async function SponsorsPage() {
               </a>
             </p>
           </div>
-          <SponsorForm />
+          {/* The enquiry form renders only when a delivery provider is
+              configured; otherwise the mailto route above is the whole story. */}
+          {contactFormEnabled ? <SponsorForm /> : null}
         </div>
       </section>
     </>

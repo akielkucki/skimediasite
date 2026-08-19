@@ -1,5 +1,5 @@
 import { author } from "./authors";
-import { img } from "./media";
+import { photo } from "./media";
 import { a, b, body, divider, embed, figure, h, i, list, p, quote, t } from "./rich-text";
 import { sponsor } from "./sponsors";
 import type { Article } from "@/types/content";
@@ -35,9 +35,8 @@ export const articles: Article[] = [
     slug: "the-last-cold-aspect",
     kind: "feature",
     dek: "A north-facing couloir above Tarnvik has held snow every year since records began. This season it went bare in April. What that means for the people who ski it — and for the forecasters who read it.",
-    hero: img("alpine-13", "A single carved line across an open snowfield below a high ridge", {
-      credit: "Placeholder artwork",
-      caption: "The Tarnvik north face, drawn from the valley floor.",
+    hero: photo("cloud-sea", {
+      caption: "Above the inversion on the Tarnvik divide, early season.",
     }),
     body: body(
       p(
@@ -64,16 +63,14 @@ export const articles: Article[] = [
         "The habit works until the reference stops being representative. Three of the eight forecasters we spoke to for this piece said they had already quietly stopped weighting TVK-N4 as heavily as the manual suggests. None had written that down.",
       ),
       figure(
-        img("alpine-11", "Abstract contour intervals across a dark ridge face", {
-          caption:
-            "Contour intervals across the basin's north-facing terrain, redrawn from survey data.",
-          credit: "Placeholder artwork",
+        photo("chamonix-traverse", {
+          caption: "A guided party crosses the basin's glaciated shoulder in March.",
         }),
       ),
       embed(
         { provider: "youtube", videoId: "aqz-KE-bpKQ" },
         "How a weak layer forms and persists — snowpack explainer",
-        img("alpine-09", "Poster frame for the snowpack explainer"),
+        photo("skintrack", { alt: "Poster frame for the snowpack explainer" }),
       ),
       h("What the guides changed first"),
       p(
@@ -146,7 +143,7 @@ export const articles: Article[] = [
     slug: "corniche-labs-transceiver-recall",
     kind: "news",
     dek: "Roughly 4,000 units are affected. The manufacturer says the fault reduces secondary-antenna range in cold conditions and is offering free replacement.",
-    hero: img("alpine-07", "Cold abstract ridgeline in low light"),
+    hero: photo("storm-team"),
     body: body(
       p(
         "Corniche Labs has issued a voluntary recall covering two production batches of its mid-range avalanche transceiver, citing a soldering fault on the secondary antenna that can reduce effective search range below −12°C.",
@@ -180,7 +177,7 @@ export const articles: Article[] = [
     slug: "southern-season-metre-in-four-days",
     kind: "news",
     dek: "After the driest June in a decade across the southern ranges, a stalled low has delivered the season's first sustained cold cycle.",
-    hero: img("alpine-05", "Storm-shadowed peaks above a bank of cloud"),
+    hero: photo("storm-peak"),
     body: body(
       p(
         "Four consecutive days of orographic snowfall have reset a southern season that, until last week, looked like it might not properly begin. Upper-mountain totals across the main range are between 95 and 130 centimetres, with the deepest accumulations on south and south-east aspects above 1,600 metres.",
@@ -211,7 +208,7 @@ export const articles: Article[] = [
     slug: "valley-votes-down-gondola-replacement",
     kind: "news",
     dek: "The margin narrowed to 91 votes. The operator says the existing lift has four seasons left; opponents say the plan was always about property, not skiing.",
-    hero: img("alpine-14", "Geometric slab of dark rock against pale snowfield"),
+    hero: photo("gondola-forest"),
     body: body(
       p(
         "Residents have rejected a proposed gondola replacement for the third time in seven years, this time by 91 votes out of just over 4,300 cast — the narrowest margin the project has faced.",
@@ -237,7 +234,7 @@ export const articles: Article[] = [
     slug: "freeride-qualifier-drops-two-run-format",
     kind: "news",
     dek: "Organisers cite weather windows and athlete safety. Riders are split on whether a single run rewards the right kind of skiing.",
-    hero: img("alpine-09", "Steep abstract face with carved track lines"),
+    hero: photo("action-turn"),
     body: body(
       p(
         "The qualifier series will move to a single scored run from the coming season, ending a two-run format that has been in place since 2019. Organisers say the change is driven by shrinking weather windows and by the cumulative risk of asking athletes to commit twice on degrading snow.",
@@ -268,7 +265,7 @@ export const articles: Article[] = [
     slug: "snowmaking-licence-water-court",
     kind: "news",
     dek: "Three resorts and two downstream municipalities are arguing over an abstraction limit written in 1974, before any of them made snow.",
-    hero: img("alpine-16", "Pale blue meltwater channels through a snowfield"),
+    hero: photo("lift-fog"),
     body: body(
       p(
         "A dispute over winter water abstraction has moved to the regional water court, with three resort operators and two downstream municipalities contesting an interpretation of a licence drafted half a century ago.",
@@ -295,7 +292,7 @@ export const articles: Article[] = [
     slug: "tarnvik-forecast-service-interview",
     kind: "news",
     dek: "The head of the Tarnvik avalanche service on flat budgets, thinning observation networks and why the bulletin has quietly got more cautious.",
-    hero: img("alpine-12", "Weather-map banding above a dark ridge"),
+    hero: photo("snowstorm-peak"),
     body: body(
       p(
         "The Tarnvik service covers 900 square kilometres with four full-time forecasters and a network of eleven automated stations, three of which have been out of service since spring. Its head agreed to a long interview on the condition that we publish the budget figures in full.",
@@ -328,7 +325,7 @@ export const articles: Article[] = [
     slug: "heli-ski-permit-cap-held",
     kind: "news",
     dek: "Operators wanted a 15 per cent increase. The land agency declined without setting out a review date.",
-    hero: img("alpine-02", "Wide pale basin under flat light"),
+    hero: photo("aerial-carve"),
     body: body(
       p(
         "The regional land agency has declined to raise the heli-ski permit cap for a fifth consecutive year, rejecting an industry submission that sought a 15 per cent increase in permitted landings.",
@@ -351,7 +348,7 @@ export const articles: Article[] = [
     slug: "beacon-check-protocol-adopted",
     kind: "news",
     dek: "The revised trailhead check adds a transmit-range step and drops a habit that instructors have quietly considered useless for years.",
-    hero: img("alpine-08", "Snow-shadow blues across a broad slope"),
+    hero: photo("skintrack"),
     body: body(
       p(
         "Four national ski-instruction bodies have adopted a revised trailhead transceiver check that adds an explicit transmit-range verification and removes the group-wide receive sweep that has been standard practice for two decades.",
@@ -384,7 +381,7 @@ export const articles: Article[] = [
     slug: "alpine-hut-network-settlement",
     kind: "news",
     dek: "Eighty-one huts, one funding line, and the first multi-year commitment since 2011.",
-    hero: img("alpine-17", "Isolated dark structure motif on a pale field"),
+    hero: photo("stone-hut"),
     body: body(
       p(
         "The federation that maintains 81 high-alpine huts has secured a five-year maintenance settlement, ending a decade of annual funding rounds that made structural work almost impossible to schedule.",
@@ -409,7 +406,7 @@ export const articles: Article[] = [
     slug: "against-the-powder-day",
     kind: "opinion",
     dek: "Skiing's defining unit of value is a single morning. That is a strange thing to build a culture — and an industry — around.",
-    hero: img("alpine-06", "High-contrast ridge against a bright sky"),
+    hero: photo("powder-turn"),
     body: body(
       p(
         "The powder day is skiing's reserve currency. Films are cut around it, marketing budgets are timed to it, and an enormous amount of individual life planning is organised in service of being in the right valley on the right morning.",
@@ -453,7 +450,7 @@ export const articles: Article[] = [
     slug: "who-actually-pays-for-a-ski-film",
     kind: "blog",
     dek: "We asked six producers to break down a feature budget. The answers were more consistent — and more precarious — than expected.",
-    hero: img("alpine-13", "Cinematic dark ridge with a single bright track"),
+    hero: photo("chamonix-traverse"),
     body: body(
       p(
         "A feature-length ski film costs, at the low end of what is still watchable, somewhere between €180,000 and €400,000. Almost none of that comes from anyone paying to watch it.",
@@ -499,7 +496,7 @@ export const articles: Article[] = [
     slug: "skiing-well-when-you-cannot-see",
     kind: "blog",
     dek: "Flat light is not a visibility problem so much as a balance problem. Four adjustments that work, from people who ski in it constantly.",
-    hero: img("alpine-04", "Featureless pale field with faint contour lines"),
+    hero: photo("frosted-lift"),
     body: body(
       p(
         "In genuinely flat light the surface stops giving you information about what is coming. Most skiers respond by leaning back and slowing down, which removes the two things — pressure and speed — that would have let them feel the terrain instead.",
@@ -537,7 +534,7 @@ export const articles: Article[] = [
     slug: "we-broke-eleven-touring-bindings",
     kind: "feature",
     dek: "A season-long destruction test of pin bindings, and what the failure modes say about how they are actually designed.",
-    hero: img("alpine-10", "Hard geometric shadow across a snowfield"),
+    hero: photo("vintage-skis"),
     body: body(
       p(
         "We took eleven pin bindings, mounted them on identical skis, and ran them until something gave. Not a lab test — a season of real touring days, plus a deliberately abusive final week designed to find the limit.",
@@ -556,8 +553,8 @@ export const articles: Article[] = [
         "Callum Ross",
       ),
       figure(
-        img("alpine-15", "Abstract fractured geometry across dark rock", {
-          caption: "Failure points, mapped across the test set.",
+        photo("skis-topdown", {
+          caption: "Part of the test set, between cycles.",
         }),
       ),
       h("What we would actually buy"),
@@ -583,7 +580,7 @@ export const articles: Article[] = [
     slug: "night-train-is-back",
     kind: "blog",
     dek: "Twelve hours of sleeper rail versus two hours of flight plus everything else. We ran both, back to back, to the same valley.",
-    hero: img("alpine-18", "Long dark horizontal bands across pale snow"),
+    hero: photo("frosty-branches"),
     body: body(
       p(
         "The comparison people make is flight time versus train time, and on that basis rail loses badly. The comparison that matters is door to first lift, and on that basis it is much closer than anyone expects.",
@@ -621,7 +618,7 @@ export const articles: Article[] = [
     slug: "what-a-ski-instructor-actually-earns",
     kind: "feature",
     dek: "We collected anonymous pay data from 214 instructors across nine countries. The spread is enormous and the floor is lower than the industry likes to admit.",
-    hero: img("alpine-01", "Layered ridgelines receding into pale distance"),
+    hero: photo("lauterbrunnen"),
     body: body(
       p(
         "Instructor pay is one of the least transparent numbers in skiing. Schools rarely publish rates, instructors are frequently discouraged from discussing them, and the headline figure quoted to prospective trainees usually describes a top-of-scale instructor in a peak week.",
@@ -662,7 +659,9 @@ export const articles: Article[] = [
     slug: "building-a-shell-for-continuous-rain",
     kind: "blog",
     dek: "A look inside a maritime-snow outerwear programme, produced with support from Fjellhaus.",
-    hero: img("alpine-11", "Dark saturated ridge under heavy cloud"),
+    hero: photo("snowstorm-peak", {
+      alt: "Rain-heavy cloud closes over a maritime mountain face",
+    }),
     body: body(
       p(
         "Maritime snowpacks pose a materials problem that alpine ones do not: the failure condition is not cold, it is sustained wetting at temperatures around freezing, where a membrane's pressure differential largely disappears.",
@@ -698,7 +697,7 @@ export const articles: Article[] = [
     slug: "a-january-in-hokkaido-counted",
     kind: "blog",
     dek: "Thirty-one days, one notebook, and an attempt to describe a famous snowpack without using the word that everyone uses.",
-    hero: img("alpine-05", "Soft pale banding suggesting continuous snowfall"),
+    hero: photo("sunrise-ascent"),
     body: body(
       p(
         "I spent January keeping a deliberately boring record: snowfall overnight, temperature at 09:00, wind at the top station, and one sentence about the skiing. The aim was to see what the month looked like stripped of adjectives.",
@@ -734,7 +733,7 @@ export const articles: Article[] = [
     slug: "quiet-death-of-the-snow-guarantee",
     kind: "opinion",
     dek: "Refund promises were a marketing device that briefly became a liability. Almost every operator has now dropped them, and nobody announced it.",
-    hero: img("alpine-14", "Torn geometric slab motif in cold greys"),
+    hero: photo("remote-hut"),
     body: body(
       p(
         "Ten years ago the snow guarantee was everywhere: book early, and if the mountain does not open, you get your money back. Today you will struggle to find one that is not hedged into meaninglessness.",
