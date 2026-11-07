@@ -39,36 +39,57 @@ NEXT_PUBLIC_SANITY_DATASET=production
 
 Restart `npm run dev`.
 
-## 3. Allow the Studio to talk to your local site
+## 3. Allow the backend to talk to Sanity
 
 In [sanity.io/manage](https://sanity.io/manage) → your project → **API** → **CORS origins**, add
-`http://localhost:3333` (the Studio) with credentials allowed.
+every address the backend is opened from — `http://localhost:3000` and your production domain — with
+**Allow credentials** ticked.
 
-## 4. Run the Studio
+## 4. Open the backend
+
+The backend panel is Sanity Studio, mounted inside the site at **`/studio`**
+(`src/app/studio/[[...tool]]/page.tsx`):
 
 ```bash
-npm run studio      # http://localhost:3333
+npm run dev         # then open http://localhost:3000/studio
 ```
 
-The Studio is a **separate process**, not a route inside the Next.js app. That keeps the ~2MB Studio
-bundle out of the website's build and means the site can never fail to build because of a CMS
-misconfiguration. Deploy it separately with `npm run studio:deploy` (hosted by Sanity) or build it
-with `npm run studio:build`.
+Sign in with the Google/GitHub/email account that owns the Sanity project. Invite other editors from
+the project's **Members** tab on sanity.io/manage — only members can sign in.
+
+- Until `NEXT_PUBLIC_SANITY_PROJECT_ID` is set, `/studio` shows these setup steps instead of the
+  Studio, so a build never fails because of CMS configuration.
+- `/studio` sits outside the `(site)` route group: no header, footer or ads, `noindex`, its own CSP
+  (`next.config.ts`). The Studio bundle is code-split to that route, so public pages don't load it.
+- `npm run studio` still runs the same Studio standalone on `:3333` if you prefer.
+
+### What's in the sidebar
+
+| Section        | What it controls                                                          |
+| -------------- | ------------------------------------------------------------------------- |
+| Site settings  | Contact details (emails, phone, address, hours, socials) and ad switches  |
+| Articles       | Every story. Tick **Featured** to put it in the homepage carousel         |
+| Videos         | The TV catalogue. "Rows this appears in" fills the /tv rows               |
+| Shows & series | Multi-episode programmes                                                  |
+| Sponsors       | The /sponsors logo grid: name, logo, website, active dates                |
+| Ad banners     | Custom brand-deal banners. One active banner per slot replaces Google ads |
+| Authors        | Bylines                                                                   |
+| Categories     | Article categories                                                        |
 
 ## Content models
 
 Schemas live in `sanity/schemas/`. They map onto `src/types/content.ts` via `src/lib/cms/map.ts`.
 
-| Type           | Notes                                                                  |
-| -------------- | ---------------------------------------------------------------------- |
-| `siteSettings` | Singleton. Overrides for `src/config/site.ts`; blank fields fall back. |
-| `author`       | Name, slug, role, bio, image, social.                                  |
-| `category`     | Label, slug, and whether it belongs to the news or blog index.         |
-| `article`      | News / feature / blog / opinion. Body, sponsor, related content, SEO.  |
-| `video`        | Provider-aware source, artwork, credits, ownership, series, captions.  |
-| `show`         | Series with seasons and ordered episode references.                    |
-| `sponsor`      | Tier, logo variants, website, active date range.                       |
-| `promotion`    | Fills an ad placement. Creative, destination, sponsor, campaign dates. |
+| Type           | Notes                                                                        |
+| -------------- | ---------------------------------------------------------------------------- |
+| `siteSettings` | Singleton. Contact details + ad switches; blank fields fall back to site.ts. |
+| `author`       | Name, slug, role, bio, image, social.                                        |
+| `category`     | Label and slug.                                                              |
+| `article`      | News / feature / blog / opinion. Body, sponsor, related content, SEO.        |
+| `video`        | Provider-aware source, artwork, credits, ownership, series, captions.        |
+| `show`         | Series with seasons and ordered episode references.                          |
+| `sponsor`      | Tier, logo variants, website, active date range.                             |
+| `promotion`    | "Ad banner": a brand-deal creative for one slot, with campaign dates.        |
 
 Every field carries an editor-facing description in the Studio.
 
@@ -93,8 +114,8 @@ never leak into the public site.
 4. **SEO** → optional overrides; the standfirst and hero are used by default.
 5. Publish.
 
-It appears on `/news` (news, feature) or `/blog` (blog, opinion) and at `/articles/<slug>` within
-the ISR window (300 seconds).
+It appears on `/news` (every content type — the blog was folded in) and at `/articles/<slug>`
+within the ISR window (300 seconds). Tick **Featured** and it joins the homepage carousel.
 
 **Body blocks available:** paragraph, heading, subheading, quote, bulleted/numbered list, pull
 quote, inline image (with caption + credit), inline video, section break. The renderer supports
@@ -110,20 +131,18 @@ exactly these — the CMS can never inject arbitrary HTML into a page.
 
 ### Curating the TV rows
 
-There is no separate "homepage builder". Row membership is driven by a video's `categories` array:
+Row membership is driven by a video's `categories` array ("Rows this appears in"):
 
-| Row                   | Include this category              |
-| --------------------- | ---------------------------------- |
-| Latest releases       | `latest` or `featured`             |
-| Original series       | (automatic — any video in a show)  |
-| Ski films             | `films`                            |
-| Athlete profiles      | `athletes`                         |
-| Destination stories   | `destinations`                     |
-| Technique & education | `technique` or `education`         |
-| Event coverage        | `events`                           |
-| Gear stories          | `gear`                             |
-| Staff picks           | `staff-picks`                      |
-| Made with partners    | (automatic — ownership ≠ original) |
+| Row              | Include this category  |
+| ---------------- | ---------------------- |
+| Latest releases  | `latest` or `featured` |
+| Ski films        | `films`                |
+| Athlete profiles | `athletes`             |
+| Event coverage   | `events`               |
+
+The homepage needs no curation: its video row is simply the 5 newest videos (excluding the featured
+one, which leads the TV band), and its carousel is the 5 newest articles ticked **Featured**, topped
+up with the latest stories if fewer are ticked.
 
 Rows with no videos don't render. Row definitions live in `ROW_DEFINITIONS` in
 `src/lib/cms/index.ts` if you need to add one.
@@ -172,7 +191,7 @@ and redirects to the document; then have the content-layer functions use `previe
 
 ## Cache invalidation
 
-Reads are tagged (`article`, `article:<slug>`, `video`, `sponsor`, `promotion`) and revalidate every
+Reads are tagged (`article`, `article:<slug>`, `video`, `sponsor`, `promotion`, `siteSettings`) and revalidate every
 300 seconds (`siteConfig.cms.revalidateSeconds`). For instant publishing, add a Sanity webhook
 pointing at a route handler that calls `revalidateTag("article")`.
 

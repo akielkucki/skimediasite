@@ -1,3 +1,12 @@
+/*
+ * Cascade layer order, fixed up front. Sanity Studio (the /studio backend)
+ * ships its global reset in `@layer sui`; left to itself that layer is
+ * declared after Tailwind's and outranks every utility class on the route.
+ * Slotting it between `base` and `components` keeps the Studio's reset above
+ * our base styles but below our utilities.
+ */
+@layer properties, theme, base, sui, components, utilities;
+
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -269,6 +278,24 @@ dialog.drawer[open] .drawer-item {
 .hero-settle {
   animation: hero-settle 1.6s var(--ease-cinematic) both;
   will-change: transform;
+}
+
+/* Homepage carousel: the active tab's countdown bar. Its duration is set
+   inline to match the auto-advance interval. */
+@keyframes carousel-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.carousel-progress {
+  transform-origin: left;
+  animation-name: carousel-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
 }
 
 @utility grain {

@@ -148,7 +148,6 @@ export function HeaderBar() {
 
 const SEARCH_SCOPES = [
   { value: "/news", label: "News" },
-  { value: "/blog", label: "Blog" },
   { value: "/tv/search", label: "TV" },
 ] as const;
 

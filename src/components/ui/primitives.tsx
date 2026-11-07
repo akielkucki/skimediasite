@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -133,13 +134,13 @@ export function SponsorDisclosure({ sponsor }: { sponsor?: Sponsor }) {
 /* ── Sponsor logo ──────────────────────────────────────────────────────── */
 
 /**
- * Sponsor "logo".
+ * Sponsor logo.
  *
- * Seed sponsors are invented brands with no real logo files, so this renders a
- * typographic lockup instead — which cannot be mistaken for a real brand asset
- * and reads correctly in both monochrome and colour contexts. When the CMS
- * supplies `logo.mono` / `logo.color`, swap this for an `<Image />`; the
- * `ImageAsset` shape is already on the type.
+ * Renders the logo uploaded in the backend — the single-colour version on the
+ * dark strips (`mono`), the full-colour one on the sponsors grid (`color`),
+ * each falling back to the other. Seed sponsors are invented brands with no
+ * logo files, so they get a typographic lockup instead, which cannot be
+ * mistaken for a real brand asset.
  */
 export function SponsorLogo({
   sponsor,
@@ -150,6 +151,24 @@ export function SponsorLogo({
   className?: string;
   tone?: "mono" | "color";
 }) {
+  const logo =
+    tone === "color"
+      ? (sponsor.logo.color ?? sponsor.logo.mono)
+      : (sponsor.logo.mono ?? sponsor.logo.color);
+
+  if (logo) {
+    return (
+      <Image
+        src={logo.src}
+        alt={logo.alt || sponsor.name}
+        width={logo.width}
+        height={logo.height}
+        sizes="240px"
+        className={cn("h-auto max-h-16 w-auto max-w-full object-contain", className)}
+      />
+    );
+  }
+
   return (
     <span
       className={cn(

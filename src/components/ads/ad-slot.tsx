@@ -1,28 +1,61 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AdsenseUnit } from "./adsense-unit";
 import { TrackedLink } from "@/components/analytics/trackers";
 import { siteConfig, type AdPlacementKey } from "@/config/site";
-import { getPromotion } from "@/lib/cms";
+import { adsenseSlotFor } from "@/lib/ads";
+import { getPromotion, googleAdsAllowed, isAdSlotEnabled } from "@/lib/cms";
+import { isProduction } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import type { Promotion } from "@/types/content";
 
 /**
  * Advertisement / promotional placement.
  *
- * Collapse rules — the whole point of this component:
+ * What fills a slot, in order:
  *
- *   • `siteConfig.ads.enabled === false`         → renders nothing.
- *   • the slot's own `enabled === false`         → renders nothing.
- *   • no promotion matches the placement         → renders nothing.
- *   • the matching promotion is outside its dates→ renders nothing.
+ *   1. a brand banner (`promotion`) scheduled for it in the backend
+ *   2. Google AdSense, when a publisher id + ad unit id are configured
+ *   3. in development only, a labelled placeholder showing where the slot is
+ *   4. otherwise nothing at all
+ *
+ * …and it renders nothing when `siteConfig.ads.enabled === false` or the slot
+ * is switched off (in site.ts or in the backend's Site settings).
  *
  * "Nothing" means no wrapper, no label and no reserved height, so a disabled
- * slot leaves no gap behind. Spacing lives on the *promotion* markup rather
- * than on a container in the page, which is why an absent slot is invisible.
+ * slot leaves no gap behind. Spacing lives on the slot markup rather than on
+ * a container in the page, which is why an absent slot is invisible.
  *
  * Sizes come from config and are applied as an aspect box, so a creative
  * loading in never shifts the page.
  */
+
+type Fill =
+  | { kind: "promotion"; promotion: Promotion }
+  | { kind: "adsense"; client: string; slot: string }
+  | { kind: "placeholder" };
+
+async function resolveFill(placement: AdPlacementKey): Promise<Fill | null> {
+  if (!siteConfig.ads.enabled) return null;
+  if (!(await isAdSlotEnabled(placement))) return null;
+
+  const promotion = await getPromotion(placement);
+  if (promotion) return { kind: "promotion", promotion };
+
+  const client = siteConfig.ads.adsense.client;
+  const slot = adsenseSlotFor(placement);
+  if (client && slot && (await googleAdsAllowed())) return { kind: "adsense", client, slot };
+
+  return isProduction ? null : { kind: "placeholder" };
+}
+
+function disclosureFor(fill: Fill) {
+  if (fill.kind === "placeholder") return "Ad space";
+  if (fill.kind === "promotion" && fill.promotion.creativeType === "house") {
+    return siteConfig.ads.promoDisclosureLabel;
+  }
+  return siteConfig.ads.disclosureLabel;
+}
 
 export async function AdSlot({
   placement,
@@ -37,19 +70,11 @@ export async function AdSlot({
   label?: string;
   tone?: "dark" | "light";
 }) {
-  if (!siteConfig.ads.enabled) return null;
+  const fill = await resolveFill(placement);
+  if (!fill) return null;
 
   const slot = siteConfig.ads.slots[placement];
-  if (!slot?.enabled) return null;
-
-  const promotion = await getPromotion(placement);
-  if (!promotion) return null;
-
-  const disclosure =
-    label ??
-    (promotion.creativeType === "house"
-      ? siteConfig.ads.promoDisclosureLabel
-      : siteConfig.ads.disclosureLabel);
+  const disclosure = label ?? disclosureFor(fill);
 
   return (
     <aside
@@ -66,7 +91,8 @@ export async function AdSlot({
       {/* Steel fails 4.5:1 on the light paper slab; slate holds it. */}
       <p className={cn("kicker", tone === "light" ? "text-slate" : "text-steel")}>{disclosure}</p>
       <AdCreative
-        promotion={promotion}
+        fill={fill}
+        placement={placement}
         width={slot.width}
         height={slot.height}
         mobileHeight={slot.mobileHeight}
@@ -86,17 +112,11 @@ export async function RailAdSlot({
   placement: AdPlacementKey;
   className?: string;
 }) {
-  if (!siteConfig.ads.enabled) return null;
+  const fill = await resolveFill(placement);
+  if (!fill) return null;
+
   const slot = siteConfig.ads.slots[placement];
-  if (!slot?.enabled) return null;
-
-  const promotion = await getPromotion(placement);
-  if (!promotion) return null;
-
-  const disclosure =
-    promotion.creativeType === "house"
-      ? siteConfig.ads.promoDisclosureLabel
-      : siteConfig.ads.disclosureLabel;
+  const disclosure = disclosureFor(fill);
 
   return (
     <aside
@@ -104,7 +124,7 @@ export async function RailAdSlot({
       className={cn("sticky top-32 hidden w-40 shrink-0 flex-col gap-2 wide:flex", className)}
     >
       <p className="kicker text-steel">{disclosure}</p>
-      <AdCreative promotion={promotion} width={slot.width} height={slot.height} rail />
+      <AdCreative fill={fill} placement={placement} width={slot.width} height={slot.height} rail />
     </aside>
   );
 }
@@ -112,38 +132,49 @@ export async function RailAdSlot({
 /* ── Creative rendering ────────────────────────────────────────────────── */
 
 function AdCreative({
-  promotion,
+  fill,
+  placement,
   width,
   height,
   mobileHeight = 104,
   rail = false,
 }: {
-  promotion: Promotion;
+  fill: Fill;
+  placement: AdPlacementKey;
   width: number;
   height: number;
   mobileHeight?: number;
   rail?: boolean;
 }) {
-  const inner =
-    promotion.creativeType === "image" && promotion.image ? (
+  let inner: React.ReactNode;
+  if (fill.kind === "adsense") {
+    inner = <AdsenseUnit client={fill.client} slot={fill.slot} />;
+  } else if (fill.kind === "placeholder") {
+    inner = <PlaceholderCreative placement={placement} width={width} height={height} />;
+  } else if (fill.promotion.creativeType === "image" && fill.promotion.image) {
+    inner = (
       <Image
-        src={promotion.image.src}
-        alt={promotion.image.alt || promotion.headline || promotion.label}
+        src={fill.promotion.image.src}
+        alt={fill.promotion.image.alt || fill.promotion.headline || fill.promotion.label}
         fill
         sizes={rail ? "160px" : "(max-width: 768px) 100vw, 970px"}
         className="object-cover"
-        placeholder={promotion.image.blurDataURL ? "blur" : undefined}
-        blurDataURL={promotion.image.blurDataURL}
+        placeholder={fill.promotion.image.blurDataURL ? "blur" : undefined}
+        blurDataURL={fill.promotion.image.blurDataURL}
       />
-    ) : (
-      <HouseCreative promotion={promotion} rail={rail} />
     );
+  } else {
+    inner = <HouseCreative promotion={fill.promotion} rail={rail} />;
+  }
 
   const box = (
     <div
       className={cn(
-        "relative mx-auto w-full overflow-hidden border border-steel/25 bg-charcoal",
-        "transition-colors duration-200 hover:border-steel/60",
+        "relative mx-auto w-full overflow-hidden",
+        fill.kind === "placeholder"
+          ? "border border-dashed border-steel/40"
+          : "border border-steel/25 bg-charcoal",
+        fill.kind === "promotion" && "transition-colors duration-200 hover:border-steel/60",
         // Reserving the ratio up front is what prevents layout shift. But a
         // 970×90 leaderboard squeezed to a phone's width is ~32px tall, which
         // would clip its own creative — so below `sm` the slot reserves a
@@ -164,7 +195,8 @@ function AdCreative({
     </div>
   );
 
-  if (!promotion.href) return box;
+  if (fill.kind !== "promotion" || !fill.promotion.href) return box;
+  const { promotion } = fill;
 
   // Paid placements should not pass link equity.
   const rel = promotion.creativeType === "house" ? undefined : "sponsored nofollow";
@@ -174,7 +206,7 @@ function AdCreative({
   if (siteConfig.monetization.analyticsProvider) {
     return (
       <TrackedLink
-        href={promotion.href}
+        href={promotion.href!}
         className="block w-full"
         rel={rel}
         event={{
@@ -189,7 +221,7 @@ function AdCreative({
   }
 
   return (
-    <Link href={promotion.href} className="block w-full" rel={rel}>
+    <Link href={promotion.href!} className="block w-full" rel={rel}>
       {box}
     </Link>
   );
@@ -217,6 +249,28 @@ function HouseCreative({ promotion, rail }: { promotion: Promotion; rail: boolea
           {promotion.body}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+/** Development-only marker for an empty slot, so the layout can be reviewed. */
+function PlaceholderCreative({
+  placement,
+  width,
+  height,
+}: {
+  placement: AdPlacementKey;
+  width: number;
+  height: number;
+}) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3 text-center">
+      <span className="kicker text-steel">
+        {siteConfig.ads.slots[placement].label} · {width}×{height}
+      </span>
+      <span className="text-xs text-steel">
+        Google ad or brand banner goes here. Visible in development only.
+      </span>
     </div>
   );
 }

@@ -76,7 +76,7 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
   const adAfterBlock =
     article.body.length >= 8 ? Math.max(3, Math.floor(article.body.length / 3)) : undefined;
 
-  const indexPath = article.kind === "blog" || article.kind === "opinion" ? "/blog" : "/news";
+  const indexPath = "/news";
 
   return (
     <article>
@@ -100,7 +100,7 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
           __html: safeJsonLd(
             breadcrumbJsonLd([
               { name: "Home", path: "/" },
-              { name: article.kind === "blog" ? "Blog" : "News", path: indexPath },
+              { name: "News", path: indexPath },
               { name: article.title, path: `/articles/${article.slug}` },
             ]),
           ),
@@ -112,7 +112,7 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
         <div className="mx-auto flex max-w-4xl flex-col gap-6">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3">
             <Link href={indexPath} className="kicker text-mist transition-colors hover:text-ice">
-              {article.kind === "blog" || article.kind === "opinion" ? "Blog" : "News"}
+              News
             </Link>
             <span aria-hidden="true" className="text-steel">
               /

@@ -10,7 +10,7 @@ import localFont from "next/font/local";
  * font variable inherit.
  */
 const serif = localFont({
-  src: "../../fonts/source-serif-4-latin-variable.woff2",
+  src: "../../../fonts/source-serif-4-latin-variable.woff2",
   variable: "--font-source-serif",
   weight: "200 900",
   display: "swap",

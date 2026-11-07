@@ -1,13 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { RouteTracker } from "@/components/analytics/trackers";
-import { SiteHeader } from "@/components/layout/site-header";
-import { SiteFooter } from "@/components/layout/site-footer";
 import { siteConfig } from "@/config/site";
 import { assertProductionConfig, isIndexable } from "@/lib/env";
-import { organisationJsonLd, websiteJsonLd } from "@/lib/seo";
-import { safeJsonLd } from "@/lib/utils";
 
 // Fail a production build/startup on placeholder configuration (localhost
 // canonicals, `.example` contacts, missing content source). See lib/env.ts.
@@ -94,33 +89,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <style>{`[data-reveal]{opacity:1!important;transform:none!important;clip-path:none!important}`}</style>
         </noscript>
       </head>
-      <body className="flex min-h-full flex-col bg-void text-ice">
-        <a
-          href="#main"
-          className="sr-only z-[100] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:bg-accent focus:px-5 focus:py-3 focus:text-sm focus:font-semibold focus:uppercase focus:tracking-widest focus:text-void"
-        >
-          Skip to content
-        </a>
-
-        <SiteHeader />
-
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-
-        <SiteFooter />
-
-        {siteConfig.monetization.analyticsProvider ? <RouteTracker /> : null}
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(organisationJsonLd()) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(websiteJsonLd()) }}
-        />
-      </body>
+      {/* Header, footer and ads live in app/(site)/layout.tsx, so the
+          backend at /studio renders full-screen without them. */}
+      <body className="flex min-h-full flex-col bg-void text-ice">{children}</body>
     </html>
   );
 }

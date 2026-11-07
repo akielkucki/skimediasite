@@ -1,6 +1,14 @@
 import { cache } from "react";
 import { isCmsConfigured, sanityClient } from "./client";
-import { mapArticle, mapAuthor, mapPromotion, mapShow, mapSponsor, mapVideo } from "./map";
+import {
+  mapArticle,
+  mapAuthor,
+  mapPromotion,
+  mapShow,
+  mapSiteSettings,
+  mapSponsor,
+  mapVideo,
+} from "./map";
 import * as q from "./queries";
 import { articles as mockArticles } from "@/data/articles";
 import { authors as mockAuthors } from "@/data/authors";
@@ -11,14 +19,17 @@ import { siteConfig } from "@/config/site";
 import { demoContentEnabled, isProduction } from "@/lib/env";
 import { reportError, reportWarning } from "@/lib/monitoring";
 import { estimateReadingTime, matchesSearch } from "@/lib/utils";
+import type { AdPlacementKey } from "@/config/site";
 import type {
   Article,
   ArticleQuery,
   Author,
+  ContactDetails,
   MediaCollection,
   Paginated,
   Promotion,
   Show,
+  SiteSettings,
   Sponsor,
   Video,
 } from "@/types/content";
@@ -201,11 +212,13 @@ export async function getArticleSlugs(): Promise<string[]> {
   return seed(mockArticles).map((a) => a.slug);
 }
 
-/** The single lead story for the homepage. */
-export async function getLeadArticle(): Promise<Article | null> {
+/**
+ * The homepage carousel: stories ticked "Featured" in the backend, newest
+ * first, topped up with the latest stories when fewer than `limit` are.
+ */
+export async function getFeaturedArticles(limit = 5): Promise<Article[]> {
   const all = await allArticles();
-  const featured = all.find((a) => a.featured && a.kind === "feature");
-  return featured ?? all[0] ?? null;
+  return [...all.filter((a) => a.featured), ...all.filter((a) => !a.featured)].slice(0, limit);
 }
 
 export async function getRelatedArticles(article: Article, limit = 3): Promise<Article[]> {
@@ -396,12 +409,6 @@ const ROW_DEFINITIONS: Array<{
     match: (v) => v.categories.includes("latest") || v.categories.includes("featured"),
   },
   {
-    slug: "original-series",
-    title: "Original series",
-    description: "Recurring programming made by our film team.",
-    match: (v) => Boolean(v.series),
-  },
-  {
     slug: "ski-films",
     title: "Ski films",
     match: (v) => v.categories.includes("films"),
@@ -413,37 +420,9 @@ const ROW_DEFINITIONS: Array<{
     match: (v) => v.categories.includes("athletes"),
   },
   {
-    slug: "destination-stories",
-    title: "Destination stories",
-    match: (v) => v.categories.includes("destinations"),
-  },
-  {
-    slug: "technique",
-    title: "Technique & education",
-    description: "Practical instruction, filmed in the conditions being described.",
-    match: (v) => v.categories.includes("technique") || v.categories.includes("education"),
-  },
-  {
     slug: "events",
     title: "Event coverage",
     match: (v) => v.categories.includes("events"),
-  },
-  {
-    slug: "gear",
-    title: "Gear stories",
-    match: (v) => v.categories.includes("gear"),
-  },
-  {
-    slug: "staff-picks",
-    title: "Staff picks",
-    description: "What the newsroom would put on tonight.",
-    match: (v) => v.categories.includes("staff-picks"),
-  },
-  {
-    slug: "with-partners",
-    title: "Made with partners",
-    description: "Co-productions and partner-supplied films, labelled as such.",
-    match: (v) => v.ownership !== "original",
   },
 ];
 
@@ -523,16 +502,20 @@ export const getSponsors = cache(async (): Promise<Sponsor[]> => {
   return cms ?? seed(mockSponsors);
 });
 
-export async function getFeaturedSponsors(limit?: number): Promise<Sponsor[]> {
+/** Sponsors inside their active date window — what the sponsors grid shows. */
+export async function getActiveSponsors(): Promise<Sponsor[]> {
   const all = await getSponsors();
   const now = Date.now();
-  const active = all.filter((s) => {
-    if (!s.featured) return false;
+  return all.filter((s) => {
     if (s.activeFrom && new Date(s.activeFrom).getTime() > now) return false;
     if (s.activeUntil && new Date(s.activeUntil).getTime() < now) return false;
     return true;
   });
-  return limit ? active.slice(0, limit) : active;
+}
+
+export async function getFeaturedSponsors(limit?: number): Promise<Sponsor[]> {
+  const featured = (await getActiveSponsors()).filter((s) => s.featured);
+  return limit ? featured.slice(0, limit) : featured;
 }
 
 /* ── Promotions ────────────────────────────────────────────────────────── */
@@ -554,4 +537,47 @@ export async function getPromotion(placement: string): Promise<Promotion | null>
       return true;
     }) ?? null
   );
+}
+
+/* ── Site settings ─────────────────────────────────────────────────────── */
+
+/** The backend's Site settings singleton, or null with no CMS / no document. */
+export const getSiteSettings = cache(async (): Promise<SiteSettings | null> => {
+  if (!sanityClient) return null;
+  try {
+    const raw = await sanityClient.fetch<unknown>(
+      q.siteSettingsQuery,
+      {},
+      { next: { revalidate: REVALIDATE, tags: ["siteSettings"] } },
+    );
+    return mapSiteSettings(raw);
+  } catch (error) {
+    reportError("cms", error, { tag: "siteSettings" });
+    return null;
+  }
+});
+
+/** Contact details: whatever the backend sets, falling back to site.ts. */
+export async function getContactDetails(): Promise<ContactDetails> {
+  const contact = (await getSiteSettings())?.contact ?? {};
+  return {
+    contactEmail: contact.contactEmail ?? siteConfig.contactEmail,
+    editorialEmail: contact.editorialEmail ?? siteConfig.editorialEmail,
+    sponsorshipEmail: contact.sponsorshipEmail ?? siteConfig.sponsorshipEmail,
+    phone: contact.phone ?? siteConfig.phone,
+    addressLines: contact.addressLines?.length ? contact.addressLines : siteConfig.addressLines,
+    officeHours: contact.officeHours ?? siteConfig.officeHours,
+    social: contact.social?.length ? contact.social : siteConfig.social,
+  };
+}
+
+/** A placement's on/off state: the backend switch wins over site.ts. */
+export async function isAdSlotEnabled(placement: AdPlacementKey): Promise<boolean> {
+  const override = (await getSiteSettings())?.adSlots[placement];
+  return override ?? siteConfig.ads.slots[placement].enabled;
+}
+
+/** Whether Google AdSense may fill empty slots (backend switch, default on). */
+export async function googleAdsAllowed(): Promise<boolean> {
+  return (await getSiteSettings())?.googleAds ?? true;
 }

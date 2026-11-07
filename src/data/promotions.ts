@@ -9,8 +9,8 @@ import type { Promotion } from "@/types/content";
  * (b) is `active`, and (c) is inside its date window. If nothing matches, the
  * slot renders nothing at all — no empty box, no reserved gap.
  *
- * These are house/sponsor promos, not paid display creative. Real display
- * would arrive as `creativeType: "script"` from an ad server.
+ * These are house/sponsor promos standing in for brand-deal banners. Paid
+ * display comes from Google AdSense, which fills any slot left empty here.
  */
 export const promotions: Promotion[] = [
   {

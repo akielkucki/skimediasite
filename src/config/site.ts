@@ -36,6 +36,7 @@ export type SocialLink = {
  */
 export type AdPlacementKey =
   | "global-leaderboard"
+  | "global-footer"
   | "editorial-rail-left"
   | "editorial-rail-right"
   | "home-inline"
@@ -75,6 +76,15 @@ const AD_SLOTS: Record<AdPlacementKey, AdSlotConfig> = {
     height: 90,
     desktopOnly: true,
   },
+  // The closing banner above the footer, on every page and every viewport —
+  // the placement that carries mobile on pages with no inline slot.
+  "global-footer": {
+    enabled: true,
+    label: "Footer banner",
+    width: 728,
+    height: 90,
+    mobileHeight: 100,
+  },
   "editorial-rail-left": {
     enabled: false,
     label: "Left rail",
@@ -111,7 +121,7 @@ const AD_SLOTS: Record<AdPlacementKey, AdSlotConfig> = {
     mobileHeight: 112,
   },
   "tv-row-inline": {
-    enabled: false,
+    enabled: true,
     label: "TV row inline",
     width: 970,
     height: 250,
@@ -156,8 +166,12 @@ export const siteConfig = {
   editorialEmail: "tips@northaspect.example",
   /** REPLACE ME */
   sponsorshipEmail: "partners@northaspect.example",
-  /** REPLACE ME — leave empty to hide postal-address surfaces entirely. */
-  addressLines: [] as string[],
+  /** REPLACE ME (or set it in the backend) — leave empty to hide it. */
+  phone: "+44 20 7946 0000",
+  /** REPLACE ME (or set it in the backend) — leave empty to hide postal-address surfaces. */
+  addressLines: ["North Aspect Media", "1 Example Street", "Town, AB1 2CD"] as string[],
+  /** REPLACE ME (or set it in the backend) — leave empty to hide it. */
+  officeHours: "Monday–Friday, 9:00–17:30",
 
   /* ── URLs ────────────────────────────────────────────────────────────── */
   /**
@@ -178,46 +192,42 @@ export const siteConfig = {
 
   /* ── Navigation ──────────────────────────────────────────────────────── */
   mainNav: [
-    { label: "News", href: "/news", description: "Daily skiing dispatches" },
-    { label: "Blog", href: "/blog", description: "Opinion, culture, columns" },
+    { label: "News", href: "/news", description: "Skiing news and articles" },
     {
       label: "TV",
       href: "/tv",
-      description: "Films, series and original edits",
+      description: "Films, athletes and events",
       emphasis: true,
     },
-    { label: "Sponsors", href: "/sponsors", description: "Partner with us" },
+    { label: "Sponsors", href: "/sponsors", description: "The brands behind us" },
     { label: "About", href: "/about", description: "Who we are" },
+    { label: "Contact", href: "/contact", description: "Every way to reach us" },
   ] satisfies NavItem[],
 
   /** Secondary nav rendered inside the /tv experience. */
   tvNav: [
     { label: "All", href: "/tv" },
-    { label: "Series", href: "/tv/collections/original-series" },
     { label: "Films", href: "/tv/collections/ski-films" },
     { label: "Athletes", href: "/tv/collections/athlete-profiles" },
-    { label: "Destinations", href: "/tv/collections/destination-stories" },
-    { label: "Technique", href: "/tv/collections/technique" },
+    { label: "Events", href: "/tv/collections/events" },
   ] satisfies NavItem[],
 
   footerNav: {
     Editorial: [
       { label: "Latest news", href: "/news" },
-      { label: "Blog & opinion", href: "/blog" },
       { label: "About us", href: "/about" },
       { label: "Contact", href: "/contact" },
+      { label: "Editorial tips", href: "/contact?intent=editorial-tip" },
     ],
     Watch: [
       { label: "TV home", href: "/tv" },
-      { label: "Original series", href: "/tv/collections/original-series" },
       { label: "Ski films", href: "/tv/collections/ski-films" },
+      { label: "Athletes", href: "/tv/collections/athlete-profiles" },
       { label: "Submit a film", href: "/contact?intent=video-submission" },
     ],
     Partner: [
-      { label: "Sponsorship", href: "/sponsors" },
-      { label: "Advertise", href: "/contact?intent=sponsorship" },
-      { label: "Media kit", href: "/sponsors#formats" },
-      { label: "Editorial tips", href: "/contact?intent=editorial-tip" },
+      { label: "Our sponsors", href: "/sponsors" },
+      { label: "Advertise with us", href: "/contact?intent=sponsorship" },
     ],
   } satisfies Record<string, NavItem[]>,
 
@@ -253,6 +263,17 @@ export const siteConfig = {
     /** Used for house/sponsor promos rather than paid display. */
     promoDisclosureLabel: "Promotional placement",
     slots: AD_SLOTS,
+    /**
+     * Google AdSense. Fills any slot that has no brand banner scheduled in the
+     * backend — brand deals always win. Off until the publisher id is set;
+     * per-slot ad unit ids are read in src/lib/ads.ts.
+     */
+    adsense: {
+      /** e.g. "ca-pub-1234567890123456". Public, not a secret. */
+      client: /^ca-pub-\d+$/.test(process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? "")
+        ? (process.env.NEXT_PUBLIC_ADSENSE_CLIENT as string)
+        : null,
+    },
   },
 
   /* ── Sponsors ────────────────────────────────────────────────────────── */

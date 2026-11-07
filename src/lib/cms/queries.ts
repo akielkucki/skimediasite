@@ -48,8 +48,8 @@ export const ARTICLE_DETAIL_FIELDS = `
   ${ARTICLE_FIELDS},
   body[]{
     ...,
-    _type == "image" => { "image": @${IMAGE} },
-    _type == "video" => { title, "source": source${VIDEO_SOURCE}, "poster": poster${IMAGE} }
+    _type in ["inlineImage", "image"] => { "image": @${IMAGE} },
+    _type in ["inlineVideo", "video"] => { title, "source": source${VIDEO_SOURCE}, "poster": poster${IMAGE} }
   },
   "relatedArticleIds": relatedArticles[]->_id,
   "relatedVideoIds": relatedVideos[]->_id
@@ -175,12 +175,10 @@ export const promotionsQuery = `
 
 /** Site settings are optional — the file config always provides defaults. */
 export const siteSettingsQuery = `
-*[_type == "siteSettings"][0]{
-  name, shortName, description, tagline, editorialTagline,
-  contactEmail, editorialEmail, sponsorshipEmail,
+*[_type == "siteSettings" && !(_id in path("drafts.**"))][0]{
+  contactEmail, editorialEmail, sponsorshipEmail, phone, address, officeHours,
   social[]{ label, href, icon },
-  seo{ defaultTitle, description, "image": image${IMAGE} },
-  adSlots[]{ placement, enabled },
-  "featuredSponsorIds": featuredSponsors[]->_id
+  googleAds,
+  adSlots[]{ placement, enabled }
 }
 `;

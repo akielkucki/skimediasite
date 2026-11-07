@@ -7,15 +7,10 @@ import { EditorialRule, Reveal, StaggerGroup, StaggerItem } from "@/components/m
 import { MaskIn } from "@/components/motion/on-load";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, Kicker, Tag } from "@/components/ui/primitives";
-import { cn } from "@/lib/utils";
 import type { Article, Paginated } from "@/types/content";
 
 /**
- * Shared index view for /news and /blog.
- *
- * Both routes share the machinery — filters, pagination, empty states — but
- * pass different `tone`s: `news` is dense and information-first, `blog` gives
- * each story more air and leads with the numbered editorial index.
+ * The /news index: featured story, filters, results grid and pagination.
  *
  * Pagination is URL-driven ("load more" is a link to `?page=2`), so it works
  * without JavaScript, is crawlable, and every state is a shareable URL.
@@ -33,7 +28,6 @@ export function ArticleIndex({
   query,
   page,
   perPage,
-  tone = "news",
   tags,
 }: {
   basePath: string;
@@ -48,10 +42,8 @@ export function ArticleIndex({
   query?: string;
   page: number;
   perPage: number;
-  tone?: "news" | "blog";
   tags: string[];
 }) {
-  const blog = tone === "blog";
   const nextPageHref = buildHref(basePath, {
     category: activeCategory,
     tag: activeTag,
@@ -66,14 +58,7 @@ export function ArticleIndex({
         <div className="flex flex-col gap-5">
           <Kicker accent>{kicker}</Kicker>
           <MaskIn>
-            <h1
-              className={cn(
-                "display text-ice",
-                blog ? "text-[clamp(3rem,10vw,7.5rem)]" : "text-[clamp(2.75rem,8vw,6rem)]",
-              )}
-            >
-              {title}
-            </h1>
+            <h1 className="display text-[clamp(2.75rem,8vw,6rem)] text-ice">{title}</h1>
           </MaskIn>
           <p className="max-w-2xl text-pretty leading-relaxed text-mist">{standfirst}</p>
         </div>
@@ -109,16 +94,10 @@ export function ArticleIndex({
 
         {/* ── Results ────────────────────────────────────────────────── */}
         {results.items.length > 0 ? (
-          <StaggerGroup
-            as="div"
-            className={cn(
-              "grid gap-x-8 gap-y-14",
-              blog ? "md:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3",
-            )}
-          >
-            {results.items.map((article, i) => (
+          <StaggerGroup as="div" className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+            {results.items.map((article) => (
               <StaggerItem key={article._id}>
-                <ArticleCard article={article} index={blog ? i : undefined} />
+                <ArticleCard article={article} />
               </StaggerItem>
             ))}
           </StaggerGroup>

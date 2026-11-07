@@ -16,7 +16,7 @@ export const revalidate = 300;
 export const metadata: Metadata = pageMetadata({
   title: `${siteConfig.shortName} TV`,
   description:
-    "Ski films, original series, athlete profiles, destination stories and technique — free to watch, with every production clearly credited.",
+    "Ski films, athlete profiles and event coverage — free to watch, with every production clearly credited.",
   path: "/tv",
 });
 
@@ -60,7 +60,7 @@ export default async function TvPage() {
               <MediaRow collection={collection} />
               {/* One optional inline placement, after the second row only. */}
               {i === 1 ? (
-                <div className="gutter">
+                <div className="gutter empty:hidden">
                   <AdSlot placement="tv-row-inline" />
                 </div>
               ) : null}

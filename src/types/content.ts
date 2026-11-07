@@ -202,6 +202,30 @@ export type Promotion = {
   active: boolean;
 };
 
+/* ── Site settings (edited in the backend) ─────────────────────────────── */
+
+/** Everything the contact page, footer and forms need to reach the team. */
+export type ContactDetails = {
+  contactEmail: string;
+  editorialEmail: string;
+  sponsorshipEmail: string;
+  phone: string;
+  addressLines: string[];
+  officeHours: string;
+  social: { label: string; href: string; icon: SocialIconKey }[];
+};
+
+export type SocialIconKey = "instagram" | "youtube" | "x" | "tiktok" | "rss";
+
+/** The backend's Site settings document. Blank fields fall back to site.ts. */
+export type SiteSettings = {
+  contact: Partial<ContactDetails>;
+  /** Per-placement on/off switches; absent placements keep the file default. */
+  adSlots: Partial<Record<string, boolean>>;
+  /** Let Google AdSense fill slots that have no brand banner. */
+  googleAds: boolean;
+};
+
 /* ── SEO ───────────────────────────────────────────────────────────────── */
 
 export type SeoFields = {

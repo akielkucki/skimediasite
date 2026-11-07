@@ -29,49 +29,116 @@ const ACCESS_LEVEL = defineField({
 
 /* ── Site settings ─────────────────────────────────────────────────────── */
 
+/**
+ * Ad placements, as editors see them. Values must match `AdPlacementKey` in
+ * src/config/site.ts.
+ */
+const AD_PLACEMENTS = [
+  { title: "Leaderboard — below the menu, every page (desktop)", value: "global-leaderboard" },
+  { title: "Footer banner — above the footer, every page", value: "global-footer" },
+  { title: "Left rail — wide screens only", value: "editorial-rail-left" },
+  { title: "Right rail — wide screens only", value: "editorial-rail-right" },
+  { title: "Homepage — between videos and articles", value: "home-inline" },
+  { title: "News page — below the list", value: "index-inline" },
+  { title: "Inside articles", value: "article-inline" },
+  { title: "TV page — between rows", value: "tv-row-inline" },
+];
+
 export const siteSettings = defineType({
   name: "siteSettings",
   title: "Site settings",
   type: "document",
-  description:
-    "Overrides for the values in src/config/site.ts. Anything left blank falls back to the file.",
+  description: "Anything left blank falls back to the defaults in src/config/site.ts.",
+  groups: [
+    { name: "contact", title: "Contact details", default: true },
+    { name: "ads", title: "Ads" },
+  ],
   fields: [
-    defineField({ name: "name", title: "Site name", type: "string" }),
-    defineField({ name: "shortName", title: "Short name", type: "string" }),
-    defineField({ name: "description", title: "Description", type: "text", rows: 3 }),
-    defineField({ name: "tagline", title: "Tagline", type: "string" }),
-    defineField({ name: "editorialTagline", title: "Editorial tagline", type: "string" }),
-    defineField({ name: "contactEmail", title: "General contact email", type: "string" }),
-    defineField({ name: "editorialEmail", title: "Editorial/tips email", type: "string" }),
-    defineField({ name: "sponsorshipEmail", title: "Sponsorship email", type: "string" }),
+    defineField({
+      name: "contactEmail",
+      title: "General email",
+      type: "string",
+      group: "contact",
+      description: "Shown on the contact page and in the footer. General and technical enquiries.",
+      validation: (rule) => rule.email(),
+    }),
+    defineField({
+      name: "editorialEmail",
+      title: "Editorial / tips email",
+      type: "string",
+      group: "contact",
+      description: "Story tips and film submissions.",
+      validation: (rule) => rule.email(),
+    }),
+    defineField({
+      name: "sponsorshipEmail",
+      title: "Sponsorship & advertising email",
+      type: "string",
+      group: "contact",
+      validation: (rule) => rule.email(),
+    }),
+    defineField({ name: "phone", title: "Phone number", type: "string", group: "contact" }),
+    defineField({
+      name: "address",
+      title: "Postal address",
+      type: "text",
+      rows: 4,
+      group: "contact",
+      description: "One line per row, as it should appear on an envelope.",
+    }),
+    defineField({
+      name: "officeHours",
+      title: "Office hours",
+      type: "string",
+      group: "contact",
+      description: "e.g. “Monday–Friday, 9:00–17:30”.",
+    }),
     defineField({
       name: "social",
       title: "Social links",
       type: "array",
+      group: "contact",
+      description: "Shown on the contact page, footer and mobile menu.",
       of: [
         {
           type: "object",
           fields: [
-            defineField({ name: "label", type: "string" }),
-            defineField({ name: "href", type: "url" }),
+            defineField({ name: "label", type: "string", validation: (r) => r.required() }),
+            defineField({
+              name: "href",
+              title: "URL",
+              type: "url",
+              validation: (r) => r.required(),
+            }),
             defineField({
               name: "icon",
               type: "string",
               options: {
                 list: ["instagram", "youtube", "x", "tiktok", "rss"],
               },
+              validation: (r) => r.required(),
             }),
           ],
+          preview: { select: { title: "label", subtitle: "href" } },
         },
       ],
     }),
-    defineField({ name: "seo", title: "Default SEO", type: "seoFields" }),
+    defineField({
+      name: "googleAds",
+      title: "Show Google ads in empty slots",
+      type: "boolean",
+      group: "ads",
+      initialValue: true,
+      description:
+        "When a slot has no brand banner scheduled, Google AdSense fills it (once the AdSense publisher id is set on the host). Turn off to show only brand banners.",
+    }),
     defineField({
       name: "adSlots",
-      title: "Ad slot overrides",
+      title: "Turn ad slots on or off",
       type: "array",
+      group: "ads",
       description:
-        "Switch a placement off without a deploy. Placement keys are listed in src/config/site.ts.",
+        "Switch a placement on or off without a redeploy. Unlisted slots keep their default.",
       of: [
         {
           type: "object",
@@ -79,30 +146,17 @@ export const siteSettings = defineType({
             defineField({
               name: "placement",
               type: "string",
-              options: {
-                list: [
-                  "global-leaderboard",
-                  "editorial-rail-left",
-                  "editorial-rail-right",
-                  "home-inline",
-                  "index-inline",
-                  "article-inline",
-                  "tv-row-inline",
-                ],
-              },
+              options: { list: AD_PLACEMENTS },
+              validation: (r) => r.required(),
             }),
             defineField({ name: "enabled", type: "boolean", initialValue: true }),
           ],
-          preview: { select: { title: "placement", subtitle: "enabled" } },
+          preview: {
+            select: { title: "placement", enabled: "enabled" },
+            prepare: ({ title, enabled }) => ({ title, subtitle: enabled ? "On" : "Off" }),
+          },
         },
       ],
-    }),
-    defineField({
-      name: "featuredSponsors",
-      title: "Featured sponsors",
-      type: "array",
-      description: "Shown in the homepage and footer logo strips, in this order.",
-      of: [{ type: "reference", to: [{ type: "sponsor" }] }],
     }),
   ],
   preview: { prepare: () => ({ title: "Site settings" }) },
@@ -165,21 +219,8 @@ export const category = defineType({
       options: { source: "label" },
       validation: (rule) => rule.required(),
     }),
-    defineField({
-      name: "section",
-      title: "Belongs to",
-      type: "string",
-      options: {
-        list: [
-          { title: "News index", value: "news" },
-          { title: "Blog index", value: "blog" },
-        ],
-        layout: "radio",
-      },
-      initialValue: "news",
-    }),
   ],
-  preview: { select: { title: "label", subtitle: "section" } },
+  preview: { select: { title: "label", subtitle: "slug.current" } },
 });
 
 /* ── Article ───────────────────────────────────────────────────────────── */
@@ -217,8 +258,7 @@ export const article = defineType({
       type: "string",
       group: "content",
       initialValue: "news",
-      description:
-        "News and features appear on /news. Blog and opinion appear on /blog. All live at /articles/[slug].",
+      description: "Every type is listed on /news and lives at /articles/[slug].",
       options: {
         list: [
           { title: "News", value: "news" },
@@ -312,7 +352,8 @@ export const article = defineType({
       type: "boolean",
       group: "meta",
       initialValue: false,
-      description: "Eligible to lead the homepage or its index page.",
+      description:
+        "Shows in the homepage carousel (the 5 newest featured stories) and can lead the news page.",
     }),
     defineField({
       name: "relatedArticles",
@@ -481,21 +522,13 @@ export const video = defineType({
       of: [{ type: "string" }],
       group: "meta",
       description:
-        "This is how the /tv rows are curated. Add one or more of: latest, featured, films, originals, athletes, destinations, technique, education, events, gear, staff-picks, sponsored.",
+        "This is how the /tv rows are filled. Every video also appears on the homepage while it is among the 5 newest.",
       options: {
         list: [
-          "latest",
-          "featured",
-          "films",
-          "originals",
-          "athletes",
-          "destinations",
-          "technique",
-          "education",
-          "events",
-          "gear",
-          "staff-picks",
-          "sponsored",
+          { title: "Latest releases", value: "latest" },
+          { title: "Ski films", value: "films" },
+          { title: "Athlete profiles", value: "athletes" },
+          { title: "Event coverage", value: "events" },
         ],
       },
     }),
@@ -735,10 +768,10 @@ export const sponsor = defineType({
 
 export const promotion = defineType({
   name: "promotion",
-  title: "Promotion / ad placement",
+  title: "Ad banner",
   type: "document",
   description:
-    "Fills an ad slot. If nothing matches a placement, that slot renders nothing at all — no empty box.",
+    "A custom brand-deal banner for one ad slot. While it is active and inside its dates it replaces Google ads in that slot.",
   fields: [
     defineField({
       name: "label",
@@ -749,20 +782,9 @@ export const promotion = defineType({
     }),
     defineField({
       name: "placement",
-      title: "Placement key",
+      title: "Where it shows",
       type: "string",
-      description: "Must match a key in src/config/site.ts → ads.slots.",
-      options: {
-        list: [
-          { title: "Leaderboard (below nav, all pages)", value: "global-leaderboard" },
-          { title: "Left rail (wide desktop)", value: "editorial-rail-left" },
-          { title: "Right rail (wide desktop)", value: "editorial-rail-right" },
-          { title: "Homepage inline", value: "home-inline" },
-          { title: "News/blog index inline", value: "index-inline" },
-          { title: "In-article", value: "article-inline" },
-          { title: "Between TV rows", value: "tv-row-inline" },
-        ],
-      },
+      options: { list: AD_PLACEMENTS },
       validation: (rule) => rule.required(),
     }),
     defineField({
@@ -771,9 +793,8 @@ export const promotion = defineType({
       initialValue: "house",
       options: {
         list: [
-          { title: "House / text creative", value: "house" },
-          { title: "Image creative", value: "image" },
-          { title: "Third-party script (not yet wired up)", value: "script" },
+          { title: "Image banner — upload the brand's artwork", value: "image" },
+          { title: "Text banner — headline and a line of copy", value: "house" },
         ],
         layout: "radio",
       },

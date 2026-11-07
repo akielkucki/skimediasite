@@ -26,7 +26,7 @@ npm run typecheck    # tsc --noEmit
 npm run format       # prettier --write
 npm run check        # format check + lint + typecheck, in one go
 npm run placeholders # regenerate the procedural artwork (brand motif / empty states)
-npm run studio       # Sanity Studio on :3333 (needs credentials)
+npm run studio       # the backend standalone on :3333 (it's also at /studio in the site)
 npm run test:e2e     # Playwright smoke, a11y (axe), drawer, forms, sitemap crawl
 node scripts/import-pexels.mjs  # re-import the curated Pexels photo set
 ```
@@ -39,23 +39,24 @@ configured. To knowingly deploy the fictional demo content, set
 
 ## What's here
 
-| Route                    | What it is                                                               |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `/`                      | Editorial homepage — cinematic hero, news, features, columns, TV band    |
-| `/news`                  | News index: featured story, category filters, tags, search, load-more    |
-| `/blog`                  | Blog & opinion index — same machinery, looser magazine layout            |
-| `/articles/[slug]`       | Article template (all four content types live here)                      |
-| `/tv`                    | Streaming-style TV landing page with programmed content rows             |
-| `/tv/collections/[slug]` | Full collection view (static) — deep browsing behind the capped rows     |
-| `/tv/search`             | TV search results (the only dynamic TV route)                            |
-| `/tv/[slug]`             | Video/show detail — player, credits, ownership disclosure, more episodes |
-| `/sponsors`              | Partnership formats, current partners, enquiry form                      |
-| `/contact`               | Five contact intents, routed to different desks (static)                 |
-| `/privacy`               | Privacy & terms — kept true to what the codebase actually does           |
-| `/about`                 | Publication, standards, newsroom                                         |
-| `/rss.xml`               | Feed (sponsored items are labelled in the feed too)                      |
-| `/sitemap.xml`           | Generated from the content layer                                         |
-| `/robots.txt`            | Generated                                                                |
+| Route                    | What it is                                                                |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `/`                      | Homepage — 5-story featured carousel, 5 latest videos, 5 stories, TV band |
+| `/news`                  | News index (every article type): featured story, filters, search, more    |
+| `/articles/[slug]`       | Article template (all four content types live here)                       |
+| `/tv`                    | TV landing page: Latest, Films, Athletes and Events rows                  |
+| `/tv/collections/[slug]` | Full collection view (static) — deep browsing behind the capped rows      |
+| `/tv/search`             | TV search results (the only dynamic TV route)                             |
+| `/tv/[slug]`             | Video/show detail — player, credits, ownership disclosure, more episodes  |
+| `/sponsors`              | Sponsor logo grid, each linking to the company's site                     |
+| `/contact`               | Emails, phone, hours, address, socials and a desk-routed contact form     |
+| `/studio`                | **Backend panel** — Sanity Studio (see [docs/CMS.md](docs/CMS.md))        |
+| `/ads.txt`               | Google AdSense seller declaration (once a publisher id is set)            |
+| `/privacy`               | Privacy & terms — kept true to what the codebase actually does            |
+| `/about`                 | Publication, standards, newsroom                                          |
+| `/rss.xml`               | Feed (sponsored items are labelled in the feed too)                       |
+| `/sitemap.xml`           | Generated from the content layer                                          |
+| `/robots.txt`            | Generated                                                                 |
 
 ## Architecture
 
@@ -76,7 +77,8 @@ src/
   data/                 ← local seed content (used when no CMS is configured)
   components/
     layout/ editorial/ tv/ ads/ sponsors/ forms/ motion/ ui/ home/
-  app/                  ← routes; Server Components unless noted
+  app/(site)/           ← public routes (header, ads, footer); Server Components unless noted
+  app/studio/           ← the backend panel (Sanity Studio), outside the site chrome
 sanity/schemas/         ← CMS schemas (used by the Studio, not by the site)
 scripts/                ← placeholder artwork generator
 ```
@@ -93,9 +95,9 @@ controls, and the reveal primitives.
 
 ### Rendering
 
-- `/`, `/about`, `/sponsors`, `/contact`, `/privacy`, `/tv` — static
+- `/`, `/about`, `/sponsors`, `/contact`, `/privacy`, `/tv`, `/studio` — static
 - `/articles/[slug]`, `/tv/[slug]`, `/tv/collections/[slug]` — statically generated, ISR at 300s
-- `/news`, `/blog`, `/tv/search` — dynamic (they read `searchParams` for filters and search).
+- `/news`, `/tv/search` — dynamic (they read `searchParams` for filters and search).
   When Sanity is configured, filtering/search/pagination run inside GROQ, not in app memory.
   (Cache Components were evaluated for these routes and deliberately not enabled in this pass —
   the searchParams-driven pages are already thin, and the model change touches every route.)

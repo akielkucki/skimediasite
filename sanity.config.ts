@@ -1,42 +1,71 @@
+"use client";
+
 import { defineConfig } from "sanity";
-import { structureTool } from "sanity/structure";
+import { structureTool, type StructureResolver } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { schemaTypes } from "./sanity/schemas";
 import { siteConfig } from "./src/config/site";
 
 /**
- * Sanity Studio configuration.
+ * Sanity Studio configuration — the site's backend panel.
  *
- * Run the Studio with `npm run studio` (it starts on http://localhost:3333).
- * It is NOT mounted inside the Next.js app: keeping it a separate process
- * means the ~2MB Studio bundle never enters the website's build, and the
- * website keeps working with no Sanity credentials at all.
+ * Mounted inside the Next.js app at /studio (src/app/studio). It is also
+ * usable standalone with `npm run studio`. The `"use client"` directive is
+ * what lets the server route hand this config to the client-only Studio.
  *
- * Requires NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.
+ * Requires NEXT_PUBLIC_SANITY_PROJECT_ID (and optionally
+ * NEXT_PUBLIC_SANITY_DATASET). Without them /studio shows setup steps instead
+ * of the Studio, and the website itself keeps running on seed content.
  */
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID ?? "";
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET ?? "production";
 
-if (!projectId) {
-  throw new Error(
-    "NEXT_PUBLIC_SANITY_PROJECT_ID is not set. Copy .env.example to .env.local and fill it in — " +
-      "see docs/CMS.md. (The website itself runs fine without this; only the Studio needs it.)",
-  );
-}
+/** Site settings is a singleton: one fixed document, opened directly. */
+const SINGLETONS = new Set(["siteSettings"]);
+
+const structure: StructureResolver = (S) =>
+  S.list()
+    .title("Content")
+    .items([
+      S.listItem()
+        .title("Site settings")
+        .id("siteSettings")
+        .child(S.document().schemaType("siteSettings").documentId("siteSettings")),
+      S.divider(),
+      S.documentTypeListItem("article").title("Articles"),
+      S.documentTypeListItem("video").title("Videos"),
+      S.documentTypeListItem("show").title("Shows & series"),
+      S.divider(),
+      S.documentTypeListItem("sponsor").title("Sponsors"),
+      S.documentTypeListItem("promotion").title("Ad banners"),
+      S.divider(),
+      S.documentTypeListItem("author").title("Authors"),
+      S.documentTypeListItem("category").title("Categories"),
+    ]);
 
 export default defineConfig({
   name: "default",
-  title: `${siteConfig.name} — Studio`,
-  projectId,
+  title: `${siteConfig.name} — Backend`,
+  // Sanity rejects an empty id; /studio never renders the Studio without a
+  // real one (see src/app/studio), so this placeholder is never used.
+  projectId: projectId || "not-configured",
   dataset,
-  plugins: [structureTool(), visionTool({ defaultApiVersion: siteConfig.cms.apiVersion })],
-  schema: { types: schemaTypes },
+  basePath: siteConfig.cms.studioPath,
+  plugins: [
+    structureTool({ structure }),
+    visionTool({ defaultApiVersion: siteConfig.cms.apiVersion }),
+  ],
+  schema: {
+    types: schemaTypes,
+    // No "create another Site settings" from the global + menu.
+    templates: (templates) => templates.filter(({ schemaType }) => !SINGLETONS.has(schemaType)),
+  },
   document: {
-    // Site settings is a singleton — one document, no "create another".
-    newDocumentOptions: (prev, { creationContext }) =>
-      creationContext.type === "global"
-        ? prev.filter((item) => item.templateId !== "siteSettings")
-        : prev,
+    // A singleton can be edited and published, never duplicated or deleted.
+    actions: (actions, { schemaType }) =>
+      SINGLETONS.has(schemaType)
+        ? actions.filter(({ action }) => action !== "duplicate" && action !== "delete")
+        : actions,
   },
 });

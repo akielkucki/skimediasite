@@ -7,7 +7,7 @@ import { Arrow, ButtonLink } from "@/components/ui/button";
 import { Kicker, SectionHeading } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
 import { photo } from "@/data/media";
-import { getAuthors, usingLocalContent } from "@/lib/cms";
+import { getAuthors, getContactDetails, usingLocalContent } from "@/lib/cms";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -36,7 +36,8 @@ const COMMITMENTS = [
 ];
 
 export default async function AboutPage() {
-  const authors = (await getAuthors()).filter((a) => a.slug !== "newsroom");
+  const [allAuthors, contact] = await Promise.all([getAuthors(), getContactDetails()]);
+  const authors = allAuthors.filter((a) => a.slug !== "newsroom");
   const aboutImage = photo("chamonix-traverse");
 
   return (
@@ -77,7 +78,7 @@ export default async function AboutPage() {
               for factual checks.
             </p>
             <ButtonLink href="/contact" className="mt-2 self-start">
-              Get in touch
+              Contact us
               <Arrow />
             </ButtonLink>
           </div>
@@ -141,20 +142,38 @@ export default async function AboutPage() {
         </section>
       ) : null}
 
-      <section className="gutter pb-24">
-        <div className="flex flex-col gap-6 border border-steel/25 p-8 sm:flex-row sm:items-center sm:justify-between sm:p-12">
-          <div>
-            <h2 className="display text-2xl text-ice sm:text-3xl">Something we should look at?</h2>
-            <p className="mt-2 max-w-md text-sm text-mist">
-              Tips, documents and film submissions all go to the desk that handles them.
+      <section aria-labelledby="contact-heading" className="gutter pb-24">
+        <div className="grid gap-8 border border-steel/25 p-8 sm:p-12 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="flex flex-col gap-4">
+            <Kicker accent>Contact</Kicker>
+            <h2 id="contact-heading" className="display text-3xl text-ice sm:text-4xl">
+              Get in touch
+            </h2>
+            <p className="max-w-md text-sm leading-relaxed text-mist">
+              Emails for every desk, our phone number, address, social channels and a contact form
+              are all on one page.
+            </p>
+            <p className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <a
+                href={`mailto:${contact.contactEmail}`}
+                className="text-ice underline-offset-4 hover:underline"
+              >
+                {contact.contactEmail}
+              </a>
+              {contact.phone ? (
+                <a
+                  href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`}
+                  className="text-ice underline-offset-4 hover:underline"
+                >
+                  {contact.phone}
+                </a>
+              ) : null}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <ButtonLink href="/contact?intent=editorial-tip">Send a tip</ButtonLink>
-            <ButtonLink href="/contact?intent=video-submission" variant="secondary">
-              Submit a film
-            </ButtonLink>
-          </div>
+          <ButtonLink href="/contact" size="lg" className="self-start lg:self-auto">
+            Full contact page
+            <Arrow />
+          </ButtonLink>
         </div>
       </section>
     </>

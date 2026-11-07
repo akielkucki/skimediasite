@@ -3,29 +3,33 @@ import { ArticleIndex } from "@/components/editorial/article-index";
 import { siteConfig } from "@/config/site";
 import { getArticleFacets, getArticles } from "@/lib/cms";
 import { pageMetadata } from "@/lib/seo";
+import type { ArticleKind } from "@/types/content";
 
-const PER_PAGE = 8;
-const KINDS = ["blog", "opinion"] as const;
+const PER_PAGE = 9;
+/** The blog was folded in: every article type is listed here. */
+const KINDS: ArticleKind[] = ["news", "feature", "blog", "opinion"];
 
 export const metadata: Metadata = pageMetadata({
-  title: "Blog & opinion",
-  description: "Columns, arguments and reported essays on ski culture, gear, travel and technique.",
-  path: "/blog",
+  title: "Skiing news",
+  description:
+    "Reporting on snow conditions, resorts, competition, safety, the environment and the business of skiing.",
+  path: "/news",
 });
 
-export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
+export default async function NewsPage({ searchParams }: PageProps<"/news">) {
   const params = await searchParams;
   const category = single(params.category);
   const tag = single(params.tag);
   const query = single(params.q);
   const page = Math.max(1, Number(single(params.page) ?? 1) || 1);
 
+  // Featured story is only fetched for the unfiltered first page.
   const unfiltered = page === 1 && !category && !tag && !query;
-  const featuredResult = unfiltered ? await getArticles({ kind: [...KINDS], limit: 1 }) : null;
+  const featuredResult = unfiltered ? await getArticles({ kind: KINDS, limit: 1 }) : null;
   const featured = featuredResult?.items[0] ?? null;
 
   const results = await getArticles({
-    kind: [...KINDS],
+    kind: KINDS,
     category,
     tag,
     search: query,
@@ -33,20 +37,20 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
     excludeIds: featured ? [featured._id] : [],
   });
 
-  const facets = await getArticleFacets([...KINDS]);
+  const facets = await getArticleFacets(KINDS);
   const tags = facets.tags.slice(0, 18);
 
-  const categories = siteConfig.categories.blog.map((c) => ({
+  const categories = [...siteConfig.categories.news, ...siteConfig.categories.blog].map((c) => ({
     ...c,
     count: facets.categoryCounts[c.slug] ?? 0,
   }));
 
   return (
     <ArticleIndex
-      basePath="/blog"
-      kicker="Columns & essays"
-      title="The Blog"
-      standfirst="Arguments, obsessions and reported essays. Where the newsroom writes in the first person and takes a position."
+      basePath="/news"
+      kicker="The newsroom"
+      title="Skiing news"
+      standfirst="Snow, safety, competition and the business of the mountains — filed as it happens, and followed up when it matters."
       featured={featured}
       results={results}
       categories={categories.filter((c) => c.count > 0)}
@@ -55,7 +59,6 @@ export default async function BlogPage({ searchParams }: PageProps<"/blog">) {
       query={query}
       page={page}
       perPage={PER_PAGE}
-      tone="blog"
       tags={tags}
     />
   );

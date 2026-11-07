@@ -19,12 +19,20 @@ import type { MediaCollection } from "@/types/content";
 export function MediaRow({
   collection,
   className,
+  link,
 }: {
   collection: MediaCollection;
   className?: string;
+  /** Overrides the automatic "All N →" link, e.g. to point at /tv. */
+  link?: { href: string; label: string };
 }) {
   const headingId = useId();
   const capped = (collection.total ?? collection.videos.length) > collection.videos.length;
+  const headingLink =
+    link ??
+    (capped
+      ? { href: `/tv/collections/${collection.slug}`, label: `All ${collection.total} →` }
+      : null);
 
   return (
     <section aria-labelledby={headingId} className={cn("flex flex-col", className)}>
@@ -36,12 +44,12 @@ export function MediaRow({
               <h2 id={headingId} className="display text-[clamp(1.25rem,2.6vw,1.75rem)] text-ice">
                 {collection.title}
               </h2>
-              {capped ? (
+              {headingLink ? (
                 <Link
-                  href={`/tv/collections/${collection.slug}`}
+                  href={headingLink.href}
                   className="kicker inline-flex min-h-11 items-center text-mist transition-colors hover:text-ice"
                 >
-                  All {collection.total} →
+                  {headingLink.label}
                 </Link>
               ) : null}
             </div>

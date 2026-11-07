@@ -52,7 +52,8 @@ export function TvHero({ video }: { video: Video }) {
 
       <div className="gutter relative z-10 grid gap-10 lg:grid-cols-[minmax(0,34rem)_minmax(0,30rem)] lg:items-end">
         <div className="flex flex-col gap-6">
-          {/* Chips rather than bare labels — see the note in home/hero.tsx. */}
+          {/* Chips rather than bare labels: the eyebrow sits where the scrim is
+              weakest, so each label carries its own opaque backing. */}
           <div className="flex flex-wrap items-center gap-2">
             <Kicker accent className="bg-void/90 px-2.5 py-1.5 backdrop-blur-sm">
               {siteConfig.shortName} TV

@@ -21,32 +21,64 @@ ads: {
 }
 ```
 
-| Placement key          | Where it renders                           | Default |
-| ---------------------- | ------------------------------------------ | ------- |
-| `global-leaderboard`   | Directly below the primary nav, every page | on      |
-| `editorial-rail-left`  | Left margin, ≥96rem viewports only         | **off** |
-| `editorial-rail-right` | Right margin, ≥96rem viewports only        | on      |
-| `home-inline`          | Between homepage sections                  | on      |
-| `index-inline`         | Foot of the news/blog result list          | on      |
-| `article-inline`       | Inside the article body, ~⅓ down           | on      |
-| `tv-row-inline`        | Between TV rows, and on video detail pages | **off** |
+| Placement key          | Where it renders                                 | Default |
+| ---------------------- | ------------------------------------------------ | ------- |
+| `global-leaderboard`   | Directly below the primary nav, every page (≥md) | on      |
+| `global-footer`        | Above the footer, every page, every viewport     | on      |
+| `editorial-rail-left`  | Left margin, ≥96rem viewports only               | **off** |
+| `editorial-rail-right` | Right margin, ≥96rem viewports only              | on      |
+| `home-inline`          | Homepage, between the video row and the stories  | on      |
+| `index-inline`         | Foot of the news result list                     | on      |
+| `article-inline`       | Inside the article body, ~⅓ down                 | on      |
+| `tv-row-inline`        | Between TV rows, and on video detail pages       | on      |
 
-`editorial-rail-left` and `tv-row-inline` ship disabled on purpose — they're there to prove the
-collapse behaviour, and to be turned on when there's inventory.
+Every page carries at least two separate banners (leaderboard + footer banner), plus the inline slot
+for its page type. Any slot can also be switched on or off from the backend — **Site settings →
+Ads** — without a redeploy; that switch wins over `site.ts`.
+
+### What fills a slot
+
+1. **A brand banner** — an active **Ad banner** in the backend (`promotion`) for that slot, inside
+   its start/end dates. Paid banners link out with `rel="sponsored nofollow"`.
+2. **Google AdSense** — when `NEXT_PUBLIC_ADSENSE_CLIENT` and an ad-unit id are set, and **Site
+   settings → Ads → Show Google ads in empty slots** is on (the default).
+3. **In development only**, a dashed "Ad space" placeholder with the slot's name and size, so the
+   layout can be reviewed before any ads exist.
+4. Otherwise **nothing at all** — no wrapper, no label, no reserved height.
+
+So the plan is: switch AdSense on and every slot fills with Google ads. When a brand deal lands, add
+an Ad banner for the slots they bought; it takes over those slots for the campaign dates, then hands
+back to Google when it ends.
+
+### Turning on Google AdSense
+
+1. Apply at [adsense.google.com](https://adsense.google.com) with the production domain and wait
+   for approval.
+2. Create one responsive **Display ad** unit. Note the publisher id (`ca-pub-…`) and the unit's
+   `data-ad-slot` number.
+3. Set them on the host (and in `.env.local` to test):
+
+   ```dotenv
+   NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-1234567890123456
+   ADSENSE_SLOT_DEFAULT=1234567890
+   ```
+
+   Per-slot units are optional (`ADSENSE_SLOT_GLOBAL_FOOTER`, `ADSENSE_SLOT_HOME_INLINE`, … — see
+   `.env.example`).
+
+4. Redeploy. The AdSense script loads, `/ads.txt` is served, the CSP in `next.config.ts` opens to
+   Google's ad hosts, and `/privacy` gains the Google advertising disclosure — all keyed off the
+   publisher id.
+5. **Consent (UK/EEA/Switzerland):** in AdSense → **Privacy & messaging**, publish the European
+   regulations message. Google's certified consent banner is then served by the same script; no code
+   change is needed.
 
 ### The collapse rules
 
-An `<AdSlot />` renders **nothing at all** — no wrapper, no label, no reserved height — when any of
-these is true:
-
-1. `siteConfig.ads.enabled === false`
-2. That slot's `enabled === false`
-3. No promotion matches the placement
-4. The matching promotion is outside its start/end dates
-
-Spacing lives on the promotion markup, never on a container in the page, which is why a disabled
-slot leaves no gap behind. To verify: set `ads.enabled: false` and reload — every page reflows
-cleanly with no holes.
+An `<AdSlot />` renders **nothing at all** when `siteConfig.ads.enabled === false`, when the slot is
+switched off, or (in production) when neither a brand banner nor AdSense can fill it. Spacing lives
+on the slot markup, never on a container in the page, which is why a disabled slot leaves no gap
+behind. To verify: set `ads.enabled: false` and reload — every page reflows cleanly with no holes.
 
 `src/data/promotions.ts` ships a deliberately expired campaign (`promo-expired-example`) so date
 filtering is testable without editing anything.
@@ -64,15 +96,9 @@ Each slot reserves its box before the creative arrives:
 1. Add the key to `AdPlacementKey` in `src/config/site.ts`.
 2. Add its config to `AD_SLOTS` (the record is exhaustively typed — a missing key is a compile
    error).
-3. Add the option to the `promotion` schema's placement list in `sanity/schemas/documents.ts`.
+3. Add it to `AD_PLACEMENTS` in `sanity/schemas/documents.ts` (used by Ad banners and the slot
+   switches).
 4. Drop `<AdSlot placement="your-key" />` where it should appear.
-
-### Third-party ad servers
-
-`creativeType: "script"` exists in the model but is not implemented — nothing executes vendor
-JavaScript today. To add GAM or similar, extend `AdCreative` in `src/components/ads/ad-slot.tsx`
-with a client sub-component that renders the slot div and calls the vendor SDK on mount. Keep the
-reserved box; that's what protects CLS.
 
 ### Sponsorship
 
@@ -154,4 +180,4 @@ if (!siteConfig.monetization.gatingEnabled) return { status: "granted" };
 - Payments, checkout, entitlement storage
 - Paywall / metering UI
 - Subscriber-only content routing
-- Third-party ad-server integration
+- Ad servers other than AdSense (e.g. Google Ad Manager)

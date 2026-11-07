@@ -59,22 +59,6 @@ export const contactFieldNames = [
   "website",
 ];
 
-export const sponsorRules: Record<string, Rule> = {
-  name: { label: "Name", required: true, minLength: 2, maxLength: 120 },
-  email: emailRule("Work email"),
-  organisation: { label: "Company or brand", required: true, minLength: 2, maxLength: 160 },
-  budget: { label: "Indicative budget", maxLength: 80 },
-  formats: { label: "Formats of interest", maxLength: 400 },
-  message: {
-    label: "What you're trying to achieve",
-    required: true,
-    minLength: 20,
-    maxLength: 5000,
-  },
-};
-
-export const sponsorFieldNames = [...Object.keys(sponsorRules), "website"];
-
 export const newsletterRules: Record<string, Rule> = {
   email: emailRule(),
 };

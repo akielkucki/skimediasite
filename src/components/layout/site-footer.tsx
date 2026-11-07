@@ -4,15 +4,15 @@ import { NewsletterForm } from "@/components/forms/newsletter-form";
 import { SocialIcon } from "@/components/ui/social-icon";
 import { SponsorLogo } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
-import { getFeaturedSponsors } from "@/lib/cms";
+import { getContactDetails, getFeaturedSponsors } from "@/lib/cms";
 import { newsletterEnabled, realSocialLinks } from "@/lib/env";
 
 export async function SiteFooter() {
-  const sponsors = await getFeaturedSponsors(6);
+  const [sponsors, contact] = await Promise.all([getFeaturedSponsors(6), getContactDetails()]);
   const year = new Date().getFullYear();
   // Generic platform-root links from the seed config are dropped rather than
   // rendered as fake handles; /rss.xml always survives the filter.
-  const social = realSocialLinks(siteConfig.social);
+  const social = realSocialLinks(contact.social);
 
   return (
     <footer className="grain mt-24 border-t border-steel/25 bg-ink">
@@ -113,15 +113,13 @@ export async function SiteFooter() {
           <Link href="/privacy" className="transition-colors hover:text-ice">
             Privacy &amp; terms
           </Link>
-          <a
-            href={`mailto:${siteConfig.contactEmail}`}
-            className="transition-colors hover:text-ice"
-          >
-            {siteConfig.contactEmail}
+          <Link href="/contact" className="transition-colors hover:text-ice">
+            Contact
+          </Link>
+          <a href={`mailto:${contact.contactEmail}`} className="transition-colors hover:text-ice">
+            {contact.contactEmail}
           </a>
-          {siteConfig.addressLines.length > 0 ? (
-            <span>{siteConfig.addressLines.join(" · ")}</span>
-          ) : null}
+          {contact.addressLines.length > 0 ? <span>{contact.addressLines.join(" · ")}</span> : null}
         </div>
       </div>
     </footer>

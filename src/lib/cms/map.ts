@@ -8,6 +8,8 @@ import type {
   Promotion,
   RichTextBlock,
   Show,
+  SiteSettings,
+  SocialIconKey,
   Sponsor,
   Video,
   VideoSource,
@@ -177,11 +179,13 @@ export function mapBody(raw: unknown): RichTextBlock[] {
           attribution: str(block.attribution) || undefined,
         };
       }
-      if (block._type === "image") {
+      // Studio block names are `inlineImage` / `inlineVideo` (Sanity reserves
+      // `image`); the bare names are still accepted for older documents.
+      if (block._type === "inlineImage" || block._type === "image") {
         const image = mapImage(block.image ?? block, 1600);
         return image ? { _type: "image", _key: key, image } : null;
       }
-      if (block._type === "video") {
+      if (block._type === "inlineVideo" || block._type === "video") {
         const source = mapVideoSource(block.source);
         return source
           ? {
@@ -349,5 +353,40 @@ export function mapPromotion(raw: unknown): Promotion | null {
     startDate: str(r.startDate) || undefined,
     endDate: str(r.endDate) || undefined,
     active: bool(r.active, true),
+  };
+}
+
+const SOCIAL_ICONS: SocialIconKey[] = ["instagram", "youtube", "x", "tiktok", "rss"];
+
+/** The Site settings singleton. Blank strings stay blank so site.ts fills them. */
+export function mapSiteSettings(raw: unknown): SiteSettings | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Raw;
+  const adSlots: SiteSettings["adSlots"] = {};
+  for (const slot of arr<Raw>(r.adSlots)) {
+    const placement = str(slot.placement);
+    if (placement && typeof slot.enabled === "boolean") adSlots[placement] = slot.enabled;
+  }
+  return {
+    contact: {
+      contactEmail: str(r.contactEmail).trim() || undefined,
+      editorialEmail: str(r.editorialEmail).trim() || undefined,
+      sponsorshipEmail: str(r.sponsorshipEmail).trim() || undefined,
+      phone: str(r.phone).trim() || undefined,
+      officeHours: str(r.officeHours).trim() || undefined,
+      addressLines: str(r.address)
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      social: arr<Raw>(r.social)
+        .map((s) => ({
+          label: str(s.label),
+          href: str(s.href),
+          icon: str(s.icon) as SocialIconKey,
+        }))
+        .filter((s) => s.label && s.href && SOCIAL_ICONS.includes(s.icon)),
+    },
+    adSlots,
+    googleAds: bool(r.googleAds, true),
   };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MaskIn } from "@/components/motion/on-load";
 import { Kicker } from "@/components/ui/primitives";
 import { siteConfig } from "@/config/site";
+import { getContactDetails, googleAdsAllowed } from "@/lib/cms";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -19,8 +20,11 @@ export const metadata: Metadata = pageMetadata({
  * behaviour changes — analytics enabled, a mailing list connected — this page
  * is the surface that must change with it.
  */
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
   const analyticsOn = siteConfig.monetization.analyticsProvider !== null;
+  const googleAdsOn =
+    siteConfig.ads.enabled && siteConfig.ads.adsense.client !== null && (await googleAdsAllowed());
+  const contact = await getContactDetails();
 
   return (
     <div className="gutter py-16 sm:py-24">
@@ -44,14 +48,15 @@ export default function PrivacyPage() {
             {analyticsOn ? (
               <p>
                 We measure aggregate usage — which pages are read, which films are played, which
-                searches are made — without building individual profiles. We do not use advertising
-                trackers and we do not sell data.
+                searches are made — without building individual profiles. We do not sell data.
               </p>
             ) : (
               <p>
-                Nothing, by default. This site runs no analytics scripts and sets no tracking
-                cookies. Standard server logs (IP address, requested page) exist transiently for
-                security and capacity purposes, as on any web server.
+                {googleAdsOn
+                  ? "We run no analytics of our own. Our advertising partner, Google, may set cookies — see Advertising below. "
+                  : "Nothing, by default. This site runs no analytics scripts and sets no tracking cookies. "}
+                Standard server logs (IP address, requested page) exist transiently for security and
+                capacity purposes, as on any web server.
               </p>
             )}
           </section>
@@ -78,9 +83,32 @@ export default function PrivacyPage() {
           <section className="border-t border-steel/20 pt-8">
             <h2 className="display mb-3 text-xl text-ice">Advertising &amp; sponsorship</h2>
             <p>
-              Commercial placements on this site are clearly labelled wherever they appear. We do
-              not run third-party ad-tech that profiles readers.
+              Commercial placements on this site are clearly labelled wherever they appear.
+              {googleAdsOn ? null : " We do not run third-party ad-tech that profiles readers."}
             </p>
+            {googleAdsOn ? (
+              <p className="mt-3">
+                Some ad spaces are filled by Google AdSense. Google and its partners use cookies to
+                serve and measure ads, which may be based on your previous visits to this and other
+                websites. Where the law requires it, you&rsquo;ll be asked for consent first, and
+                you can change your choice at any time. You can opt out of personalised advertising
+                at{" "}
+                <a
+                  href="https://adssettings.google.com"
+                  className="text-ice underline underline-offset-4"
+                >
+                  Google Ad Settings
+                </a>
+                , and read{" "}
+                <a
+                  href="https://policies.google.com/technologies/partner-sites"
+                  className="text-ice underline underline-offset-4"
+                >
+                  how Google uses information from sites that use its services
+                </a>
+                .
+              </p>
+            ) : null}
           </section>
 
           <section className="border-t border-steel/20 pt-8">
@@ -97,10 +125,10 @@ export default function PrivacyPage() {
             <p>
               Anything about your data, or a correction to this page:{" "}
               <a
-                href={`mailto:${siteConfig.contactEmail}`}
+                href={`mailto:${contact.contactEmail}`}
                 className="text-ice underline underline-offset-4"
               >
-                {siteConfig.contactEmail}
+                {contact.contactEmail}
               </a>
               .
             </p>

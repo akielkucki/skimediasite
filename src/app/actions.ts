@@ -10,10 +10,9 @@ import {
   isSpam,
   newsletterFieldNames,
   newsletterRules,
-  sponsorFieldNames,
-  sponsorRules,
   type FormState,
 } from "@/lib/forms";
+import { getContactDetails } from "@/lib/cms";
 import { reportError, reportWarning } from "@/lib/monitoring";
 import { isRateLimited } from "@/lib/rate-limit";
 import { formValues, validate } from "@/lib/validation";
@@ -113,7 +112,8 @@ export async function submitContact(_prev: FormState, formData: FormData): Promi
   }
 
   const intent = CONTACT_INTENTS.find((i) => i.value === values.intent);
-  const routesTo = intent ? siteConfig[intent.routesTo] : siteConfig.contactEmail;
+  const contact = await getContactDetails();
+  const routesTo = intent ? contact[intent.routesTo] : contact.contactEmail;
 
   const result = await deliver("contact", { ...values, routedTo: routesTo });
 
@@ -138,62 +138,6 @@ export async function submitContact(_prev: FormState, formData: FormData): Promi
   return {
     status: "success",
     message: `Thanks — your message is with the ${intent?.label.toLowerCase() ?? "team"} desk. We reply to most enquiries within two working days.`,
-    fieldErrors: {},
-    values: {},
-  };
-}
-
-/* ── Sponsorship enquiry ───────────────────────────────────────────────── */
-
-export async function submitSponsorEnquiry(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const values = formValues(formData, sponsorFieldNames);
-
-  if (isSpam(values)) {
-    return { ...initialFormState, status: "success", message: "Thanks — we'll be in touch." };
-  }
-
-  if (isRateLimited(`sponsor:${await clientKey()}`)) return RATE_LIMITED_STATE;
-
-  const fieldErrors = validate(values, sponsorRules);
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      status: "error",
-      message: "Please correct the highlighted fields and try again.",
-      fieldErrors,
-      values,
-    };
-  }
-
-  const result = await deliver("sponsorship", {
-    ...values,
-    routedTo: siteConfig.sponsorshipEmail,
-  });
-
-  if (!result.delivered && result.detail === "no-provider") {
-    return {
-      status: "unconfigured",
-      message: `${UNCONFIGURED_MESSAGE} Partnership enquiries go to ${siteConfig.sponsorshipEmail}.`,
-      fieldErrors: {},
-      values,
-    };
-  }
-
-  if (!result.delivered) {
-    return {
-      status: "error",
-      message: `We couldn't send that (${result.detail}). Please email ${siteConfig.sponsorshipEmail} directly.`,
-      fieldErrors: {},
-      values,
-    };
-  }
-
-  return {
-    status: "success",
-    message:
-      "Thanks — the partnerships desk has your enquiry and will follow up with rates and availability.",
     fieldErrors: {},
     values: {},
   };

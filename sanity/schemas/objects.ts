@@ -279,13 +279,16 @@ export const editorialBody = defineType({
       ],
       preview: { select: { title: "quote", subtitle: "attribution" } },
     }),
+    // Named `inline…` because Sanity forbids array members that reuse a
+    // built-in type name (`image`) and warns on clashes with document types
+    // (`video`). src/lib/cms/map.ts maps them back to the app's block types.
     defineArrayMember({
-      name: "image",
+      name: "inlineImage",
       title: "Inline image",
       type: "editorialImage",
     }),
     defineArrayMember({
-      name: "video",
+      name: "inlineVideo",
       title: "Inline video",
       type: "object",
       fields: [
